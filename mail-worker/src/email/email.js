@@ -12,6 +12,8 @@ import verifyUtils from '../utils/verify-utils';
 import r2Service from '../service/r2-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import orm from '../entity/orm';
+import { account as accountTable } from '../entity/account';
 
 export async function email(message, env, ctx) {
 
@@ -46,11 +48,22 @@ export async function email(message, env, ctx) {
 
 		const email = await PostalMime.parse(content);
 
-		const account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
+		let account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
 
-		if (!account && noRecipient === settingConst.noRecipient.CLOSE) {
-			message.setReject('Recipient not found');
-			return;
+		if (!account) {
+			if (noRecipient === settingConst.noRecipient.CLOSE) {
+				message.setReject('Recipient not found');
+				return;
+			}
+			// 自动创建邮箱
+			const adminUser = await userService.selectByEmail({ env: env }, env.admin);
+			if (adminUser) {
+				account = await orm({ env }).insert(accountTable).values({
+					email: message.to,
+					userId: adminUser.userId,
+					name: emailUtils.getName(message.to)
+				}).returning().get();
+			}
 		}
 
 		let userRow = {}
