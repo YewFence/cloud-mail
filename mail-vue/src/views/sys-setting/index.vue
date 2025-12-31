@@ -171,9 +171,11 @@
                     <Icon class="warning" icon="fe:warning" width="18" height="18"/>
                   </el-tooltip>
                 </div>
-                <div>
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.noRecipient"/>
+                <div class="forward">
+                  <span>{{ setting.noRecipient === 0 ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openNoRecipient">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
                 </div>
               </div>
               <div class="setting-item">
@@ -593,6 +595,37 @@
           </div>
         </template>
       </el-dialog>
+      <el-dialog
+          v-model="noRecipientShow"
+          class="forward-dialog"
+      >
+        <template #header>
+          <div class="forward-head">
+            <span class="forward-set-title">{{ $t('noRecipientTitle') }}</span>
+            <el-tooltip effect="dark" :content="$t('noRecipientDesc')">
+              <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+            </el-tooltip>
+          </div>
+        </template>
+        <div class="forward-set-body">
+          <div class="tg-msg-label">
+             <span>{{ t('autoCreateAccount') }}</span>
+             <el-tooltip effect="dark" :content="$t('autoCreateAccountDesc')">
+                <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+              </el-tooltip>
+             <el-switch v-model="autoCreate" :active-value="0" :inactive-value="1" />
+          </div>
+        </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-switch v-model="noRecipient" :active-value="0" :inactive-value="1" :active-text="$t('enable')"
+                       :inactive-text="$t('disable')"/>
+            <el-button :loading="settingLoading" type="primary" @click="saveNoRecipient">
+              {{ $t('save') }}
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
       <el-dialog class="resend-table" v-model="showResendList" :title="$t('resendTokenList')">
         <el-table :data="resendList">
           <el-table-column :min-width="emailColumnWidth" property="key" :label="$t('domain')"
@@ -771,6 +804,7 @@ const tgSettingShow = ref(false)
 const noticePopupShow = ref(false)
 const thirdEmailShow = ref(false)
 const forwardRulesShow = ref(false)
+const noRecipientShow = ref(false)
 const emailPrefixShow = ref(false)
 const showResendList = ref(false)
 const settingStore = useSettingStore();
@@ -850,6 +884,8 @@ const ruleEmail = ref([])
 const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
 const tgMsgText = ref('')
+const noRecipient = ref(0)
+const autoCreate = ref(0)
 
 const tgMsgFromOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}, {label: t('onlyName'), value:'only-name'}]
 const tgMsgToOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}]
@@ -1134,6 +1170,20 @@ function ruleEmailSave() {
   const form = {
     ruleEmail: ruleEmail.value + '',
     ruleType: ruleType.value
+  }
+  editSetting(form)
+}
+
+function openNoRecipient() {
+  noRecipient.value = setting.value.noRecipient
+  autoCreate.value = setting.value.autoCreate
+  noRecipientShow.value = true
+}
+
+function saveNoRecipient() {
+  const form = {
+    noRecipient: noRecipient.value,
+    autoCreate: autoCreate.value
   }
   editSetting(form)
 }

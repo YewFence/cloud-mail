@@ -28,7 +28,8 @@ export async function email(message, env, ctx) {
 			ruleEmail,
 			ruleType,
 			r2Domain,
-			noRecipient
+			noRecipient,
+			autoCreate
 		} = await settingService.query({ env });
 
 		if (receive === settingConst.receive.CLOSE) {
@@ -56,13 +57,15 @@ export async function email(message, env, ctx) {
 				return;
 			}
 			// 自动创建邮箱
-			const adminUser = await userService.selectByEmail({ env: env }, env.admin);
-			if (adminUser) {
-				account = await orm({ env }).insert(accountTable).values({
-					email: message.to,
-					userId: adminUser.userId,
-					name: emailUtils.getName(message.to)
-				}).returning().get();
+			if (autoCreate === settingConst.autoCreate.OPEN) {
+				const adminUser = await userService.selectByEmail({ env: env }, env.admin);
+				if (adminUser) {
+					account = await orm({ env }).insert(accountTable).values({
+						email: message.to,
+						userId: adminUser.userId,
+						name: emailUtils.getName(message.to)
+					}).returning().get();
+				}
 			}
 		}
 

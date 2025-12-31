@@ -120,6 +120,10 @@ export const settingConst = {
 		OPEN: 0,
 		CLOSE: 1,
 	},
+	autoCreate: {
+		OPEN: 0,
+		CLOSE: 1,
+	},
 	kvStorage: {
 		OPEN: 0,
 		CLOSE: 1
