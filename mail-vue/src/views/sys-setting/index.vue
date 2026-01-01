@@ -609,11 +609,13 @@
         </template>
         <div class="forward-set-body">
           <div class="auto-create-row">
-             <span>{{ $t('autoCreateAccount') }}</span>
-             <el-tooltip effect="dark" :content="$t('autoCreateAccountDesc')">
+            <div>
+              <span>{{ $t('autoCreateAccount') }}</span>
+              <el-tooltip effect="dark" :content="$t('autoCreateAccountDesc')">
                 <Icon class="warning" icon="fe:warning" width="18" height="18"/>
               </el-tooltip>
-             <el-switch v-model="autoCreate" :active-value="0" :inactive-value="1" />
+            </div>
+            <el-switch v-model="autoCreate" :active-value="0" :inactive-value="1" />
           </div>
         </div>
         <template #footer>
