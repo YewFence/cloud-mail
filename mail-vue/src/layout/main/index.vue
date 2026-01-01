@@ -53,11 +53,17 @@ function getAccountClass() {
   return 'hide'
 }
 
-watch(() => route.path, (newPath) => {
-  const accountPages = ['/account', '/accounts']
-  const isAccountPage = accountPages.some(page => newPath.includes(page))
+const accountRouteNames = new Set(['account', 'accounts'])
 
-  if (!isAccountPage && uiStore.accountGridMode) {
+const isAccountPage = () => {
+  if (route.meta?.isAccountPage === true) {
+    return true
+  }
+  return typeof route.name === 'string' && accountRouteNames.has(route.name)
+}
+
+watch(() => route.name, () => {
+  if (!isAccountPage() && uiStore.accountGridMode) {
     uiStore.accountGridMode = false
   }
 })

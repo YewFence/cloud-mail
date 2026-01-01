@@ -45,7 +45,8 @@ const routers = {
             meta: {
                 title: 'sent',
                 name: 'send',
-                menu: true
+                menu: true,
+                isAccountPage: true
             }
         },
         {
@@ -55,7 +56,8 @@ const routers = {
             meta: {
                 title: 'drafts',
                 name: 'draft',
-                menu: true
+                menu: true,
+                isAccountPage: true
             }
         }
     ],
