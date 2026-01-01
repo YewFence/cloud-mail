@@ -12,8 +12,13 @@ import verifyUtils from '../utils/verify-utils';
 import r2Service from '../service/r2-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import orm from '../entity/orm';
+import { account as accountTable } from '../entity/account';
 
 export async function email(message, env, ctx) {
+
+	let autoCreateAdminEmail;
+	let autoCreateAdminUserId = null;
 
 	try {
 
@@ -26,7 +31,8 @@ export async function email(message, env, ctx) {
 			ruleEmail,
 			ruleType,
 			r2Domain,
-			noRecipient
+			noRecipient,
+			autoCreate
 		} = await settingService.query({ env });
 
 		if (receive === settingConst.receive.CLOSE) {
@@ -46,11 +52,24 @@ export async function email(message, env, ctx) {
 
 		const email = await PostalMime.parse(content);
 
-		const account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
+		autoCreateAdminEmail = env && env.admin;
+		let account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
 
-		if (!account && noRecipient === settingConst.noRecipient.CLOSE) {
-			message.setReject('Recipient not found');
-			return;
+		if (!account) {
+			if (noRecipient === settingConst.noRecipient.CLOSE) {
+				message.setReject('Recipient not found');
+				return;
+			}
+			// 自动创建邮箱
+			if (autoCreate === settingConst.autoCreate.OPEN) {
+				const result = await tryAutoCreateAccount({
+					env,
+					toEmail: message.to,
+					adminEmail: autoCreateAdminEmail
+				});
+				account = result.account;
+				autoCreateAdminUserId = result.adminUserId;
+			}
 		}
 
 		let userRow = {}
@@ -196,9 +215,39 @@ export async function email(message, env, ctx) {
 		}
 
 	} catch (e) {
+
+		if (isUniqueConstraintError(e)) {
+			console.error('Unique constraint violation during receive', {
+				to: message?.to,
+				admin: autoCreateAdminEmail,
+				userId: autoCreateAdminUserId,
+				error: e?.message,
+				stack: e?.stack
+			});
+		}
 		console.error('邮件接收异常: ', e);
 		throw e
 	}
+}
+
+function isUniqueConstraintError(error) {
+	if (!error) return false;
+	const code = error.code || '';
+	const message = error.message || '';
+	return code === 'SQLITE_CONSTRAINT'
+		|| code === 'SQLITE_CONSTRAINT_UNIQUE'
+		|| message.includes('SQLITE_CONSTRAINT')
+		|| message.includes('UNIQUE constraint failed');
+}
+
+function isUniqueConstraintError(error) {
+	if (!error) return false;
+	const code = error.code || '';
+	const message = error.message || '';
+	return code === 'SQLITE_CONSTRAINT'
+		|| code === 'SQLITE_CONSTRAINT_UNIQUE'
+		|| message.includes('SQLITE_CONSTRAINT')
+		|| message.includes('UNIQUE constraint failed');
 }
 
 function banEmailHandler(banEmailType, message, email) {
@@ -216,4 +265,65 @@ function banEmailHandler(banEmailType, message, email) {
 
 	return true;
 
+}
+
+/**
+ * 尝试自动创建账户
+ * @param {Object} params - 参数对象
+ * @param {Object} params.env - 环境对象
+ * @param {string} params.toEmail - 收件人邮箱地址
+ * @param {string} params.adminEmail - 管理员邮箱地址
+ * @returns {Promise<{account: Object|null, adminUserId: number|null}>} 返回创建的账户和管理员用户ID
+ */
+async function tryAutoCreateAccount({ env, toEmail, adminEmail }) {
+	console.info('Auto-create account attempt', { to: toEmail, adminEmail });
+
+	// 验证管理员邮箱是否有效
+	if (!adminEmail || !verifyUtils.isEmail(adminEmail)) {
+		console.error('Auto-create enabled but env.admin is missing or invalid', {
+			to: toEmail,
+			admin: adminEmail
+		});
+		return { account: null, adminUserId: null };
+	}
+
+	// 查询管理员用户
+	const adminUser = await userService.selectByEmail({ env }, adminEmail);
+	if (!adminUser) {
+		console.error('Auto-create enabled but admin user not found', {
+			to: toEmail,
+			admin: adminEmail
+		});
+		return { account: null, adminUserId: null };
+	}
+
+	// 尝试创建账户
+	try {
+		let account = await orm({ env }).insert(accountTable).values({
+			email: toEmail,
+			userId: adminUser.userId,
+			name: emailUtils.getName(toEmail)
+		}).onConflictDoNothing().returning().get();
+
+		// 如果因为冲突未创建,则重新加载账户
+		if (!account) {
+			console.info('Auto-create ignored due to conflict, reloading account', {
+				to: toEmail,
+				admin: adminEmail,
+				userId: adminUser.userId
+			});
+			account = await accountService.selectByEmailIncludeDel({ env }, toEmail);
+		}
+
+		return { account, adminUserId: adminUser.userId };
+	} catch (e) {
+		console.error('Auto-create account insert failed', {
+			to: toEmail,
+			admin: adminEmail,
+			userId: adminUser.userId,
+			error: e?.message,
+			stack: e?.stack
+		});
+		return { account: null, adminUserId: adminUser.userId };
+	}
 }

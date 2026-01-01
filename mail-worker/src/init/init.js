@@ -26,8 +26,17 @@ const init = {
 		await this.v2_4DB(c);
 		await this.v2_5DB(c);
 		await this.v2_6DB(c);
+		await this.v2_7DB(c);
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
+	},
+
+	async v2_7DB(c) {
+		try {
+			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1;`).run();
+		} catch (e) {
+			console.error(e)
+		}
 	},
 
 	async v2_6DB(c) {

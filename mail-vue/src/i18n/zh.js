@@ -281,6 +281,8 @@ const zh = {
     popUp: '弹出',
     noRecipientTitle: '无人收件',
     noRecipientDesc: '即使没有注册的邮箱也能收到邮件',
+    autoCreateAccount: '自动创建账户',
+    autoCreateAccountDesc: '收到未知收件人邮件时，自动在管理员名下创建该邮箱',
     preview: '预览',
     help: '帮助',
     document: '项目文档',

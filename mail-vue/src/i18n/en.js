@@ -281,6 +281,8 @@ const en = {
     popUp: 'Pop Up',
     noRecipientTitle: 'No Recipient',
     noRecipientDesc: 'Emails can be received even without a registered email address',
+    autoCreateAccount: 'Auto Create Account',
+    autoCreateAccountDesc: 'Automatically create an account for unknown recipients under the admin user',
     preview: 'Preview',
     help: 'Help',
     document: 'Document',
