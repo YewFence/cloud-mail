@@ -82,7 +82,15 @@ export async function email(message, env, ctx) {
 								email: message.to,
 								userId: adminUser.userId,
 								name: emailUtils.getName(message.to)
-							}).returning().get();
+							}).onConflictDoNothing().returning().get();
+							if (!account) {
+								console.info('Auto-create ignored due to conflict, reloading account', {
+									to: message.to,
+									admin: autoCreateAdminEmail,
+									userId: autoCreateAdminUserId
+								});
+								account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
+							}
 						} catch (e) {
 							console.error('Auto-create account insert failed', {
 								to: message.to,
