@@ -311,7 +311,9 @@ const en = {
     character: '',
     mustNotContain: 'Must Not Contain',
     mustNotContainDesc: 'Separate with commas',
-    setSuccess: 'Settings saved successfully'
+    setSuccess: 'Settings saved successfully',
+    gridView: 'Grid View',
+    listView: 'List View'
 }
 
 export default en

@@ -1,12 +1,15 @@
 <template>
   <div class="account-box">
     <div class="head-opt">
+      <el-tooltip :content="uiStore.accountGridMode ? $t('listView') : $t('gridView')" placement="bottom">
+        <Icon v-perm="'account:query'" class="icon grid-toggle" :class="{ 'grid-toggle-active': uiStore.accountGridMode }" :icon="uiStore.accountGridMode ? 'ion:grid' : 'ion:grid-outline'" width="20" height="20" @click="toggleGridMode"/>
+      </el-tooltip>
       <Icon v-perm="'account:add'" class="icon add" icon="ion:add-outline" width="23" height="23" @click="add"/>
       <Icon class="icon refresh" icon="ion:reload" width="18" height="18" @click="refresh"/>
     </div>
-    <el-scrollbar class="scrollbar" ref="scrollbarRef">
-      <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
-        <el-card class="item" :class="itemBg(item.accountId)" v-for="item in accounts" :key="item.accountId"
+    <el-scrollbar class="scrollbar" :class="{ 'scrollbar-grid': uiStore.accountGridMode }" ref="scrollbarRef">
+      <div v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false" :class="{ 'grid-container': uiStore.accountGridMode }">
+        <el-card class="item" :class="[itemBg(item.accountId), { 'item-grid': uiStore.accountGridMode }]" v-for="item in accounts" :key="item.accountId"
                  @click="changeAccount(item)">
           <div class="account">
             {{ item.email }}
@@ -37,7 +40,7 @@
         </el-card>
 
         <!-- Initial Loading Skeleton -->
-        <template v-if="loading">
+        <div v-if="loading" :class="{ 'grid-container': uiStore.accountGridMode }">
           <el-skeleton v-for="i in skeletonRows" :key="i" animated>
             <template #template>
               <el-card class="item">
@@ -49,7 +52,7 @@
               </el-card>
             </template>
           </el-skeleton>
-        </template>
+        </div>
 
         <!-- Follow Loading Skeleton -->
         <template v-if="accounts.length > 0 && !noLoading">
@@ -135,6 +138,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useUserStore} from "@/store/user.js";
+import {useUiStore} from "@/store/ui.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
@@ -144,6 +148,7 @@ const userStore = useUserStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const emailStore = useEmailStore();
+const uiStore = useUiStore();
 const showAdd = ref(false)
 const addLoading = ref(false);
 const domainList = settingStore.domainList
@@ -328,6 +333,14 @@ function changeAccount(account) {
   accountStore.currentAccount = account
 }
 
+function toggleGridMode() {
+  uiStore.accountGridMode = !uiStore.accountGridMode
+
+  if (uiStore.accountGridMode) {
+    uiStore.accountShow = true
+  }
+}
+
 function add() {
   showAdd.value = true
   setTimeout(() => {
@@ -502,16 +515,41 @@ path[fill="#ffdda1"] {
       cursor: pointer;
     }
 
+    .grid-toggle {
+      margin-left: 2px;
+      color: var(--el-text-color-regular);
+      transition: all 200ms ease-in-out;
+
+      &:hover {
+        color: var(--el-color-primary);
+        transform: scale(1.1);
+      }
+    }
+
+    .grid-toggle-active {
+      color: var(--el-color-primary);
+      animation: pulse 600ms ease-in-out;
+    }
+
     .refresh {
       margin-left: 10px;
     }
 
     .add {
-      margin-left: 2px;
+      margin-left: 10px;
     }
 
     .head-opt:not(.add) .refresh {
       margin-left: 5px;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
     }
   }
 
@@ -521,6 +559,10 @@ path[fill="#ffdda1"] {
     overflow: auto;
     @media (max-width: 767px) {
       height: calc(100% - 98px);
+    }
+
+    &.scrollbar-grid {
+      padding: 0;
     }
 
     .empty {
@@ -539,6 +581,43 @@ path[fill="#ffdda1"] {
     }
   }
 
+  .grid-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 12px;
+    animation: fadeIn 300ms ease-in-out;
+
+    @media (max-width: 1600px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    @media (max-width: 1280px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 1024px) {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding: 10px;
+    }
+
+    @media (max-width: 767px) {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 0;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   .btn {
     width: 100%;
     margin-top: 15px;
@@ -552,6 +631,27 @@ path[fill="#ffdda1"] {
     margin-left: 10px;
     margin-right: 10px;
     cursor: pointer;
+    transition: all 200ms ease-in-out;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    &.item-grid {
+      margin: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      animation: scaleIn 300ms ease-in-out;
+      animation-fill-mode: backwards;
+
+      .account {
+        font-size: 14px;
+        margin-bottom: 25px;
+      }
+    }
 
     .account {
       font-weight: 600;
@@ -586,6 +686,21 @@ path[fill="#ffdda1"] {
 
   .item:first-child {
     margin-top: 10px;
+  }
+
+  .grid-container .item:first-child {
+    margin-top: 0;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .item-choose {
