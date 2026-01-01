@@ -608,8 +608,8 @@
           </div>
         </template>
         <div class="forward-set-body">
-          <div class="tg-msg-label">
-             <span>{{ t('autoCreateAccount') }}</span>
+          <div class="auto-create-row">
+             <span>{{ $t('autoCreateAccount') }}</span>
              <el-tooltip effect="dark" :content="$t('autoCreateAccountDesc')">
                 <Icon class="warning" icon="fe:warning" width="18" height="18"/>
               </el-tooltip>
@@ -1710,6 +1710,13 @@ function editSetting(settingForm, refreshStatus = true) {
     .el-select {
       width: v-bind(tgMsgLabelWidth);
     }
+  }
+
+  .auto-create-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 }
 
