@@ -17,6 +17,9 @@ import { account as accountTable } from '../entity/account';
 
 export async function email(message, env, ctx) {
 
+	let autoCreateAdminEmail;
+	let autoCreateAdminUserId = null;
+
 	try {
 
 		const {
@@ -49,6 +52,7 @@ export async function email(message, env, ctx) {
 
 		const email = await PostalMime.parse(content);
 
+		autoCreateAdminEmail = env && env.admin;
 		let account = await accountService.selectByEmailIncludeDel({ env: env }, message.to);
 
 		if (!account) {
@@ -58,13 +62,37 @@ export async function email(message, env, ctx) {
 			}
 			// 自动创建邮箱
 			if (autoCreate === settingConst.autoCreate.OPEN) {
-				const adminUser = await userService.selectByEmail({ env: env }, env.admin);
-				if (adminUser) {
-					account = await orm({ env }).insert(accountTable).values({
-						email: message.to,
-						userId: adminUser.userId,
-						name: emailUtils.getName(message.to)
-					}).returning().get();
+				console.info('Auto-create account attempt', { to: message.to, autoCreate });
+				if (!autoCreateAdminEmail || !verifyUtils.isEmail(autoCreateAdminEmail)) {
+					console.error('Auto-create enabled but env.admin is missing or invalid', {
+						to: message.to,
+						admin: autoCreateAdminEmail
+					});
+				} else {
+					const adminUser = await userService.selectByEmail({ env: env }, autoCreateAdminEmail);
+					if (!adminUser) {
+						console.error('Auto-create enabled but admin user not found', {
+							to: message.to,
+							admin: autoCreateAdminEmail
+						});
+					} else {
+						autoCreateAdminUserId = adminUser.userId;
+						try {
+							account = await orm({ env }).insert(accountTable).values({
+								email: message.to,
+								userId: adminUser.userId,
+								name: emailUtils.getName(message.to)
+							}).returning().get();
+						} catch (e) {
+							console.error('Auto-create account insert failed', {
+								to: message.to,
+								admin: autoCreateAdminEmail,
+								userId: autoCreateAdminUserId,
+								error: e?.message,
+								stack: e?.stack
+							});
+						}
+					}
 				}
 			}
 		}
@@ -213,8 +241,27 @@ export async function email(message, env, ctx) {
 
 	} catch (e) {
 
+		if (isUniqueConstraintError(e)) {
+			console.error('Unique constraint violation during receive', {
+				to: message?.to,
+				admin: autoCreateAdminEmail,
+				userId: autoCreateAdminUserId,
+				error: e?.message,
+				stack: e?.stack
+			});
+		}
 		console.error('邮件接收异常: ', e);
 	}
+}
+
+function isUniqueConstraintError(error) {
+	if (!error) return false;
+	const code = error.code || '';
+	const message = error.message || '';
+	return code === 'SQLITE_CONSTRAINT'
+		|| message.includes('SQLITE_CONSTRAINT')
+		|| message.includes('UNIQUE constraint failed')
+		|| message.includes('UNIQUE');
 }
 
 function banEmailHandler(banEmailType, message, email) {

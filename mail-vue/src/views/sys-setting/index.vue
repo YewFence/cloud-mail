@@ -1368,6 +1368,7 @@ function editSetting(settingForm, refreshStatus = true) {
     tgSettingShow.value = false
     thirdEmailShow.value = false
     forwardRulesShow.value = false
+    noRecipientShow.value = false
     addVerifyCountShow.value = false
     regVerifyCountShow.value = false
     noticePopupShow.value = false
