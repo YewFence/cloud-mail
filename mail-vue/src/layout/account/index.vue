@@ -597,7 +597,6 @@ path[fill="#ffdda1"] {
     }
 
     @media (max-width: 1024px) {
-      grid-template-columns: repeat(2, 1fr);
       gap: 10px;
       padding: 10px;
     }
@@ -686,10 +685,6 @@ path[fill="#ffdda1"] {
 
   .item:first-child {
     margin-top: 10px;
-  }
-
-  .grid-container .item:first-child {
-    margin-top: 0;
   }
 
   @keyframes scaleIn {

@@ -203,17 +203,17 @@ const handleResize = () => {
   height: calc(100% - 60px);
 }
 
-.account-grid {
-  position: static !important;
-  transform: none !important;
-  opacity: 1 !important;
-  width: 100% !important;
-  transition: all 300ms ease-in-out;
+.show.account-grid {  
+  position: static;  
+  transform: none;  
+  opacity: 1;  
+  width: 100%;  
+  transition: all 300ms ease-in-out;  
 
-  @media (max-width: 767px) {
-    width: 260px !important;
-  }
-}
+  @media (max-width: 767px) {  
+    width: 260px;  
+  }  
+}  
 
 .main-view {
   background: var(--el-bg-color);
