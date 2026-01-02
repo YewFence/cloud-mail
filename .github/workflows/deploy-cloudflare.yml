@@ -117,11 +117,13 @@ jobs:
           if [ "${{ job.status }}" == "success" ]; then
             if [ "${{ steps.render.outputs.deployment_skipped }}" == "true" ]; then
               echo "❌ Deployment was skipped due to missing configuration."
+              exit 1
             else
               echo "🎉🎉🎉 Hooray! Deployment completed successfully! 🎉🎉🎉"
             fi
           else
             echo "❌❌❌ Oh no! The deployment failed. Please check the logs above for errors. ❌❌❌"
+            exit 1
           fi
 
       - name: Delete workflow runs
