@@ -100,25 +100,13 @@ jobs:
           echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
           echo "✅ Deployment command executed."
 
-      - name: 🗄️ 初始化数据库 - Initialize Database
+      - name: 🗄️ 数据库迁移 - Apply D1 Migrations
         if: ${{ steps.deploy.outputs.deployment_skipped == 'false' }}
+        working-directory: ./mail-worker
         run: |
-          
-          echo "⏳ Waiting 15s before checking initialization status..."
-          sleep 15
-          
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o response.txt "${{ steps.deploy.outputs.worker_url }}/api/init/${JWT_SECRET}")
-          RESPONSE_BODY=$(cat response.txt)
-          
-          echo "🔎 Checking response... (Status: $HTTP_CODE)"
-
-          if [ "$HTTP_CODE" = "200" ] && [ "$RESPONSE_BODY" = "初始化成功" -o "$RESPONSE_BODY" = "Successfully initialized" ]; then
-            echo "✅ Database initialization successful!"
-          elif [ "$HTTP_CODE" = "200" ]; then
-            echo "❌ Database initialization error: $RESPONSE_BODY"
-          else
-            echo "❌ Database initialization check failed with HTTP status: $HTTP_CODE. response: $RESPONSE_BODY"
-          fi
+          CONFIG_FILE="wrangler.generated.toml"
+          echo "🔧 Applying D1 migrations..."
+          npx wrangler d1 migrations apply cloud-mail --config "$CONFIG_FILE"
 
       - name: 📣 部署状态 - Notify Final Status
         if: always()
