@@ -28,7 +28,7 @@ jobs:
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH }}
 
     outputs:
-      deployment_skipped: ${{ steps.deploy.outputs.deployment_skipped }}
+      deployment_skipped: ${{ steps.render.outputs.deployment_skipped }}
       worker_url: ${{ steps.deploy.outputs.worker_url }}
 
     steps:
@@ -58,8 +58,8 @@ jobs:
       - name: 🧩 安装 envsubst - Install envsubst
         run: sudo apt-get update && sudo apt-get install -y gettext-base
 
-      - name: 🛠️ 设置环境变量和部署 - Set Secrets and Deploy
-        id: deploy
+      - name: 🛠️ 设置环境变量 - Render Config
+        id: render
         working-directory: ./mail-worker
         run: |
           if [ -z "$D1_DATABASE_ID" ] || [ -z "$KV_NAMESPACE_ID" ]; then
@@ -86,6 +86,12 @@ jobs:
           echo "R2 bucket configuration in $CONFIG_FILE:"
           grep -A 2 -B 2 "bucket_name" "$CONFIG_FILE" || true
 
+      - name: 🚀 部署 - Deploy
+        id: deploy
+        if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
+        working-directory: ./mail-worker
+        run: |
+          CONFIG_FILE="wrangler.generated.toml"
           echo "🔒 Setting Worker secrets..."
           echo "🚀 Configuration updated. Starting deployment..."
           npx wrangler deploy -c "$CONFIG_FILE" | tee deploy.log | grep -v "https://.*\.workers\.dev"
