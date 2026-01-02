@@ -29,7 +29,7 @@ jobs:
 
     outputs:
       deployment_skipped: ${{ steps.render.outputs.deployment_skipped }}
-      worker_url: ${{ steps.deploy.outputs.worker_url }}
+      worker_url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
       - name: ➡️ 检出代码仓库 - Checkout repository
@@ -50,10 +50,6 @@ jobs:
       - name: 📥 安装依赖 - Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
-
-      - name: 📡 禁用 Wrangler 遥测 - Disable wrangler telemetry
-        working-directory: ./mail-worker
-        run: npx wrangler telemetry disable
 
       - name: 🧩 安装 envsubst - Install envsubst
         run: sudo apt-get update && sudo apt-get install -y gettext-base
@@ -89,24 +85,21 @@ jobs:
       - name: 🚀 部署 - Deploy
         id: deploy
         if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
-        working-directory: ./mail-worker
-        run: |
-          CONFIG_FILE="wrangler.generated.toml"
-          echo "🔒 Setting Worker secrets..."
-          echo "🚀 Configuration updated. Starting deployment..."
-          npx wrangler deploy -c "$CONFIG_FILE" | tee deploy.log | grep -v "https://.*\.workers\.dev"
-          WORKER_URL=$(grep -o "https://.*\.workers\.dev" deploy.log)
-          echo "::add-mask::$WORKER_URL"
-          echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
-          echo "✅ Deployment command executed."
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./mail-worker
+          command: deploy -c wrangler.generated.toml
 
       - name: 🗄️ 数据库迁移 - Apply D1 Migrations
-        if: ${{ steps.deploy.outputs.deployment_skipped == 'false' }}
-        working-directory: ./mail-worker
-        run: |
-          CONFIG_FILE="wrangler.generated.toml"
-          echo "🔧 Applying D1 migrations..."
-          npx wrangler d1 migrations apply cloud-mail --config "$CONFIG_FILE"
+        if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./mail-worker
+          command: d1 migrations apply cloud-mail --config wrangler.generated.toml
 
       - name: 📣 部署状态 - Notify Final Status
         if: always()
