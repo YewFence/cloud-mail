@@ -51,9 +51,6 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
-      - name: 🧩 安装 envsubst - Install envsubst
-        run: sudo apt-get update && sudo apt-get install -y gettext-base
-
       - name: 🛠️ 设置环境变量 - Render Config
         id: render
         working-directory: ./mail-worker
@@ -70,17 +67,30 @@ jobs:
           CONFIG_TEMPLATE="wrangler-action.toml"
           CONFIG_FILE="wrangler.generated.toml"
 
-          echo "⚙️ 使用 envsubst 渲染配置..."
-          envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+          echo "⚙️ 渲染配置文件..."
+          
+          # 1. 复制模板，只对 DOMAIN 去掉引号（因为它可能是数组）
+          cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
+          sed -i 's/"\${DOMAIN}"/${DOMAIN}/g' "$CONFIG_FILE"
+          
+          # 2. 使用 envsubst 一次性替换所有环境变量
+          envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
 
+          # 3. 如果没有 R2，删除配置块
           if [ -z "$R2_BUCKET_NAME" ]; then
-            sed -i "/\\[\\[r2_buckets\\]\\]/,+2d" "$CONFIG_FILE"
+            yq -i -p=toml -o=toml 'del(.r2_buckets)' "$CONFIG_FILE"
+          fi
+
+          # 4. 验证 TOML 语法
+          if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
+            echo "❌ TOML 语法错误，跳过部署"
+            echo "deployment_skipped=true" >> $GITHUB_OUTPUT
+            exit 0
           fi
 
           echo "🔍 Debug: Checking configuration after rendering..."
           echo "R2_BUCKET_NAME value: '$R2_BUCKET_NAME'"
-          echo "R2 bucket configuration in $CONFIG_FILE:"
-          grep -A 2 -B 2 "bucket_name" "$CONFIG_FILE" || true
+          echo "DOMAIN value: '$DOMAIN'"
 
       - name: 🚀 部署 - Deploy
         id: deploy
