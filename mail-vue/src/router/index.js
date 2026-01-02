@@ -18,7 +18,8 @@ const routes = [
                 meta: {
                     title: 'inbox',
                     name: 'email',
-                    menu: true
+                    menu: true,
+                    isAccountPage: true
                 }
             },
             {
@@ -48,7 +49,8 @@ const routes = [
                 meta: {
                     title: 'starred',
                     name: 'star',
-                    menu: true
+                    menu: true,
+                    isAccountPage: true
                 }
             },
         ]

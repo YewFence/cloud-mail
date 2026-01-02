@@ -1,8 +1,8 @@
 <template>
-  <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
-    <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
-    <account  :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
-    <router-view class="main-view" v-slot="{ Component,route }">
+  <div :class="getMainBoxClass()">
+    <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="closeAccountPanel"></div>
+    <account  :class="getAccountClass()" />
+    <router-view v-if="!uiStore.accountGridMode" class="main-view" v-slot="{ Component,route }">
       <keep-alive :include="['email','all-email','send','sys-setting','star','user','role','analysis','reg-key','draft']">
         <component :is="Component" :key="route.name"/>
       </keep-alive>
@@ -26,6 +26,46 @@ let elNotification = null
 
 const accountShow = computed(() => {
   return uiStore.accountShow && settingStore.settings.manyEmail === 0
+})
+
+function closeAccountPanel() {
+  uiStore.accountShow = false
+  uiStore.accountGridMode = false
+}
+
+function getMainBoxClass() {
+  if (uiStore.accountGridMode && hasPerm('account:query')) {
+    return 'main-box-grid'
+  }
+  if (accountShow.value && hasPerm('account:query')) {
+    return 'main-box-show'
+  }
+  return 'main-box-hide'
+}
+
+function getAccountClass() {
+  if (uiStore.accountGridMode && hasPerm('account:query')) {
+    return 'show account-grid'
+  }
+  if (accountShow.value && hasPerm('account:query')) {
+    return 'show'
+  }
+  return 'hide'
+}
+
+const accountRouteNames = new Set(['account', 'accounts'])
+
+const isAccountPage = () => {
+  if (route.meta?.isAccountPage === true) {
+    return true
+  }
+  return typeof route.name === 'string' && accountRouteNames.has(route.name)
+}
+
+watch(() => route.name, () => {
+  if (!isAccountPage() && uiStore.accountGridMode) {
+    uiStore.accountGridMode = false
+  }
 })
 
 watch(() => uiStore.changeNotice, () => {
@@ -95,6 +135,10 @@ const handleResize = () => {
     if (innerWidth !==  window.innerWidth) {
       innerWidth = window.innerWidth;
       uiStore.accountShow = window.innerWidth >= 767;
+
+      if (window.innerWidth < 767 && uiStore.accountGridMode) {
+        uiStore.accountGridMode = false
+      }
     }
   }
 }
@@ -159,6 +203,23 @@ const handleResize = () => {
   height: calc(100% - 60px);
 }
 
+.main-box-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: calc(100% - 60px);
+}
+
+.show.account-grid {  
+  position: static;  
+  transform: none;  
+  opacity: 1;  
+  width: 100%;  
+  transition: all 300ms ease-in-out;  
+
+  @media (max-width: 767px) {  
+    width: 260px;  
+  }  
+}  
 
 .main-view {
   background: var(--el-bg-color);

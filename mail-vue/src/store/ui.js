@@ -4,6 +4,7 @@ export const useUiStore = defineStore('ui', {
     state: () => ({
         asideShow: window.innerWidth > 1024,
         accountShow: false,
+        accountGridMode: false,
         backgroundLoading: true,
         changeNotice: 0,
         writerRef: null,
@@ -27,6 +28,6 @@ export const useUiStore = defineStore('ui', {
         }
     },
     persist: {
-        pick: ['accountShow','dark'],
+        pick: ['accountShow','dark','accountGridMode'],
     },
 })
