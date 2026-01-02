@@ -105,7 +105,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            if [ "${{ steps.deploy.outputs.deployment_skipped }}" == "true" ]; then
+            if [ "${{ steps.render.outputs.deployment_skipped }}" == "true" ]; then
               echo "❌ Deployment was skipped due to missing configuration."
             else
               echo "🎉🎉🎉 Hooray! Deployment completed successfully! 🎉🎉🎉"
