@@ -14,13 +14,13 @@
 
 ## 项目简介
 
-只需要一个域名，就可以创建多个不同的邮箱，类似各大邮箱平台，本项目支持署到 Cloudflare Workers ，降低服务器成本，搭建自己的邮箱服务
+**本项目基于 [Cloud Mail](https://github.com/maillab/cloud-mail) 二次开发，新增了一些小功能。**
+
+只需要一个域名，就可以创建多个不同的邮箱，类似各大邮箱平台，本项目支持署到 Cloudflare Workers ，降低服务器成本，搭建自己的邮箱服务。
+
+原项目拥有更详细的文档参考，请访问：[https://github.com/maillab/cloud-mail](https://github.com/maillab/cloud-mail)
 
 ## 项目展示
-
-- [在线演示](https://skymail.ink)<br>
-- [部署文档](https://doc.skymail.ink)<br>
-- [界面部署](https://doc.skymail.ink/guide/via-ui.html)
 
 | ![](/doc/demo/demo1.png) | ![](/doc/demo/demo2.png) |
 |-----------------------|-----------------------|
@@ -50,6 +50,14 @@
 - **🎨 个性化设置**：可以自定义网站标题，登录背景，透明度
 
 - **🤖 人机验证**：集成Turnstile人机验证，防止人机批量注册
+
+- **⚡ 自动创建**：支持收到非存在账户邮件时自动创建邮箱（归属管理员）
+
+- **🗄️ S3存储**：支持配置自定义 S3 兼容存储，不仅仅局限于 R2
+
+- **📢 站点公告**：支持自定义站点公告弹窗，即时通知用户
+
+- **👮 规则限制**：支持配置邮箱前缀长度限制及敏感词过滤
 
 - **📜 更多功能**：正在开发中...
 
@@ -115,7 +123,7 @@
     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     workingDirectory: ./mail-worker
-    command: d1 migrations apply cloud-mail --config wrangler.generated.toml
+    command: d1 migrations apply cloud-mail --remote --config wrangler.generated.toml
 ```
 
 部署后的 Workers 地址可以从 `deploy` 步骤的 `deployment-url` 输出中获取。
@@ -165,18 +173,6 @@ cloud-mail
 └── └── env.release				# 项目配置
 ```
 
-## 赞助
-
-<a href="https://doc.skymail.ink/support.html" >
-<img width="170px" src="./doc/images/support.png" alt="">
-</a>
-
 ## 许可证
 
 本项目采用 [MIT](LICENSE) 许可证	
-
-
-## 交流
-
-[Telegram](https://t.me/cloud_mail_tg)
-
