@@ -1,0 +1,2 @@
+-- Migration number: 0002 	 2026-01-02T08:13:09.663Z
+ALTER TABLE setting ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1;

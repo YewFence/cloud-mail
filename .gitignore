@@ -25,3 +25,5 @@ mail-vue/node_modules
 mail-vue/dist
 .wrangler
 .venv
+
+wrangler.toml

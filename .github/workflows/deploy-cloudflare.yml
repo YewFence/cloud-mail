@@ -28,8 +28,8 @@ jobs:
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH }}
 
     outputs:
-      deployment_skipped: ${{ steps.deploy.outputs.deployment_skipped }}
-      worker_url: ${{ steps.deploy.outputs.worker_url }}
+      deployment_skipped: ${{ steps.render.outputs.deployment_skipped }}
+      worker_url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
       - name: ➡️ 检出代码仓库 - Checkout repository
@@ -51,12 +51,11 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
-      - name: 📡 禁用 Wrangler 遥测 - Disable wrangler telemetry
-        working-directory: ./mail-worker
-        run: npx wrangler telemetry disable
+      - name: 🧩 安装 envsubst - Install envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
 
-      - name: 🛠️ 设置环境变量和部署 - Set Secrets and Deploy
-        id: deploy
+      - name: 🛠️ 设置环境变量 - Render Config
+        id: render
         working-directory: ./mail-worker
         run: |
           if [ -z "$D1_DATABASE_ID" ] || [ -z "$KV_NAMESPACE_ID" ]; then
@@ -68,63 +67,45 @@ jobs:
           
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
           
-          CONFIG_FILE="wrangler-action.toml"
-          
+          CONFIG_TEMPLATE="wrangler-action.toml"
+          CONFIG_FILE="wrangler.generated.toml"
+
+          echo "⚙️ 使用 envsubst 渲染配置..."
+          envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+
           if [ -z "$R2_BUCKET_NAME" ]; then
-            sed -i "18,20d" "$CONFIG_FILE"
+            sed -i "/\\[\\[r2_buckets\\]\\]/,+2d" "$CONFIG_FILE"
           fi
-          
-          echo "⚙️ Dynamically updating '$CONFIG_FILE' with binding IDs..."
 
-          sed -i "s|\${D1_DATABASE_ID}|${D1_DATABASE_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
-          sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"
-
-          echo "🔍 Debug: Checking configuration after replacement..."
+          echo "🔍 Debug: Checking configuration after rendering..."
           echo "R2_BUCKET_NAME value: '$R2_BUCKET_NAME'"
           echo "R2 bucket configuration in $CONFIG_FILE:"
           grep -A 2 -B 2 "bucket_name" "$CONFIG_FILE" || true
 
-          echo "🔒 Setting Worker secrets..."
-          echo "🚀 Configuration updated. Starting deployment..."
-          npx wrangler deploy -c "$CONFIG_FILE" | tee deploy.log | grep -v "https://.*\.workers\.dev"
-          WORKER_URL=$(grep -o "https://.*\.workers\.dev" deploy.log)
-          echo "::add-mask::$WORKER_URL"
-          echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
-          echo "✅ Deployment command executed."
+      - name: 🚀 部署 - Deploy
+        id: deploy
+        if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./mail-worker
+          command: deploy -c wrangler.generated.toml
 
-      - name: 🗄️ 初始化数据库 - Initialize Database
-        if: ${{ steps.deploy.outputs.deployment_skipped == 'false' }}
-        run: |
-          
-          echo "⏳ Waiting 15s before checking initialization status..."
-          sleep 15
-          
-          HTTP_CODE=$(curl -s -w "%{http_code}" -o response.txt "${{ steps.deploy.outputs.worker_url }}/api/init/${JWT_SECRET}")
-          RESPONSE_BODY=$(cat response.txt)
-          
-          echo "🔎 Checking response... (Status: $HTTP_CODE)"
-
-          if [ "$HTTP_CODE" = "200" ] && [ "$RESPONSE_BODY" = "初始化成功" -o "$RESPONSE_BODY" = "Successfully initialized" ]; then
-            echo "✅ Database initialization successful!"
-          elif [ "$HTTP_CODE" = "200" ]; then
-            echo "❌ Database initialization error: $RESPONSE_BODY"
-          else
-            echo "❌ Database initialization check failed with HTTP status: $HTTP_CODE. response: $RESPONSE_BODY"
-          fi
+      - name: 🗄️ 数据库迁移 - Apply D1 Migrations
+        if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ./mail-worker
+          command: d1 migrations apply cloud-mail --config wrangler.generated.toml
 
       - name: 📣 部署状态 - Notify Final Status
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            if [ "${{ steps.deploy.outputs.deployment_skipped }}" == "true" ]; then
+            if [ "${{ steps.render.outputs.deployment_skipped }}" == "true" ]; then
               echo "❌ Deployment was skipped due to missing configuration."
             else
               echo "🎉🎉🎉 Hooray! Deployment completed successfully! 🎉🎉🎉"
