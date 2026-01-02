@@ -55,6 +55,9 @@ jobs:
         working-directory: ./mail-worker
         run: npx wrangler telemetry disable
 
+      - name: 🧩 安装 envsubst - Install envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
       - name: 🛠️ 设置环境变量和部署 - Set Secrets and Deploy
         id: deploy
         working-directory: ./mail-worker
@@ -68,26 +71,17 @@ jobs:
           
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
           
-          CONFIG_FILE="wrangler-action.toml"
-          
+          CONFIG_TEMPLATE="wrangler-action.toml"
+          CONFIG_FILE="wrangler.generated.toml"
+
+          echo "⚙️ 使用 envsubst 渲染配置..."
+          envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+
           if [ -z "$R2_BUCKET_NAME" ]; then
-            sed -i "18,20d" "$CONFIG_FILE"
+            sed -i "/\\[\\[r2_buckets\\]\\]/,+2d" "$CONFIG_FILE"
           fi
-          
-          echo "⚙️ Dynamically updating '$CONFIG_FILE' with binding IDs..."
 
-          sed -i "s|\${D1_DATABASE_ID}|${D1_DATABASE_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
-          sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_SWITCH}|${LINUXDO_SWITCH}|g" "$CONFIG_FILE"
-
-          echo "🔍 Debug: Checking configuration after replacement..."
+          echo "🔍 Debug: Checking configuration after rendering..."
           echo "R2_BUCKET_NAME value: '$R2_BUCKET_NAME'"
           echo "R2 bucket configuration in $CONFIG_FILE:"
           grep -A 2 -B 2 "bucket_name" "$CONFIG_FILE" || true
