@@ -240,16 +240,6 @@ function isUniqueConstraintError(error) {
 		|| message.includes('UNIQUE constraint failed');
 }
 
-function isUniqueConstraintError(error) {
-	if (!error) return false;
-	const code = error.code || '';
-	const message = error.message || '';
-	return code === 'SQLITE_CONSTRAINT'
-		|| code === 'SQLITE_CONSTRAINT_UNIQUE'
-		|| message.includes('SQLITE_CONSTRAINT')
-		|| message.includes('UNIQUE constraint failed');
-}
-
 function banEmailHandler(banEmailType, message, email) {
 
 	if (banEmailType === roleConst.banEmailType.ALL) {
