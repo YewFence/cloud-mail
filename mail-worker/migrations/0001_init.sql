@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS setting (
   tg_msg_from TEXT NOT NULL DEFAULT 'only-name',
   tg_msg_text TEXT NOT NULL DEFAULT 'show',
   min_email_prefix INTEGER NOT NULL DEFAULT 1,
-  email_prefix_filter TEXT NOT NULL DEFAULT '',
+  email_prefix_filter TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS perm (
