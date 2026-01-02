@@ -75,6 +75,51 @@
 
 - **文件存储**：[Cloudflare R2](https://developers.cloudflare.com/r2/)
 
+## GitHub Actions 部署教程（wrangler-action）
+
+这套 CI 会在你推送 `main` 分支（且改动包含 `mail-worker/**` 或 `mail-vue/**`）时自动部署，也支持手动触发。
+
+步骤如下：
+
+1) 在 GitHub 仓库中打开 Actions（默认是开启的）。
+2) 进入 `Settings -> Secrets and variables -> Actions`，新增以下 Secrets：
+   - 必填：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`
+   - 可选：`R2_BUCKET_NAME`
+   - 业务配置：`DOMAIN`、`ADMIN`、`JWT_SECRET`
+   - LinuxDo 登录：`LINUXDO_CLIENT_ID`、`LINUXDO_CLIENT_SECRET`、`LINUXDO_CALLBACK_URL`、`LINUXDO_SWITCH`
+3) 确认 `mail-worker/wrangler-action.toml` 存在（这是模板），Workflow 会用 `envsubst` 渲染成 `wrangler.generated.toml`。
+4) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
+
+关键点：
+- 使用官方 `cloudflare/wrangler-action@v3`，不依赖 `npx wrangler`。
+- 通过 `workingDirectory: ./mail-worker` 指定 Worker 目录。
+- 若 `R2_BUCKET_NAME` 为空，会自动删除 `r2_buckets` 配置。
+- 若 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID` 未配置，会跳过部署。
+- 数据库迁移逻辑已调整为使用 `wrangler-action` 执行 `d1 migrations apply`，跟随部署步骤后运行，且同样受“是否跳过部署”的条件控制。
+
+参考配置（位于 `.github/workflows/deploy-cloudflare.yml`，这里只展示核心片段）：
+
+```yaml
+- name: 🚀 部署 - Deploy
+  id: deploy
+  uses: cloudflare/wrangler-action@v3
+  with:
+    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    workingDirectory: ./mail-worker
+    command: deploy -c wrangler.generated.toml
+
+- name: 🗄️ 数据库迁移 - Apply D1 Migrations
+  uses: cloudflare/wrangler-action@v3
+  with:
+    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    workingDirectory: ./mail-worker
+    command: d1 migrations apply cloud-mail --config wrangler.generated.toml
+```
+
+部署后的 Workers 地址可以从 `deploy` 步骤的 `deployment-url` 输出中获取。
+
 ## 目录结构
 
 ```
@@ -134,6 +179,4 @@ cloud-mail
 ## 交流
 
 [Telegram](https://t.me/cloud_mail_tg)
-
-
 
