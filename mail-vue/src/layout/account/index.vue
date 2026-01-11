@@ -331,6 +331,9 @@ function refresh() {
 function changeAccount(account) {
   accountStore.currentAccountId = account.accountId
   accountStore.currentAccount = account
+  if (uiStore.accountGridMode) {
+    uiStore.accountGridMode = false
+  }
 }
 
 function toggleGridMode() {
@@ -683,7 +686,7 @@ path[fill="#ffdda1"] {
     }
   }
 
-  .item:first-child {
+  .item:not(.item-grid):first-child {
     margin-top: 10px;
   }
 
