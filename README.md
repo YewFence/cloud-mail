@@ -1,16 +1,9 @@
 <p align="center">
-  <img src="doc/demo/logo.png" width="80px" />
+    <img src="doc/demo/logo.png" width="80px" />
+    <h1 align="center">Cloud Mail</h1>
+    <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p> 
 </p>
 
-<div align="center">
-<h1>Cloud Mail</h1>
-</div>
-<div align="center">
-    <h4>基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</h4> 
-</div>
-<div align="center">
-    <span>简体中文 | <a href="/README-en.md" style="margin-left: 5px">English </a></span>
-</div>
 
 ## 项目简介
 
@@ -45,7 +38,7 @@
 
 - **📡 开放API**：支持使用API批量生成用户，多条件查询邮件 
 
-- **📈 数据可视化**：使用Echarts对系统数据详情，用户邮件增长可视化显示
+- **📈 数据可视化**：使用ECharts对系统数据详情，用户邮件增长可视化显示
 
 - **🎨 个性化设置**：可以自定义网站标题，登录背景，透明度
 
@@ -65,7 +58,7 @@
 
 ## 技术栈
 
-- **Serverless**：[Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- **平台**：[Cloudflare Workers](https://developers.cloudflare.com/workers/)
 
 - **Web框架**：[Hono](https://hono.dev/)
 
@@ -175,4 +168,4 @@ cloud-mail
 
 ## 许可证
 
-本项目采用 [MIT](LICENSE) 许可证	
+本项目采用 [MIT](LICENSE) 许可证
