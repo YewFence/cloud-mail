@@ -121,6 +121,40 @@
 
 部署后的 Workers 地址可以从 `deploy` 步骤的 `deployment-url` 输出中获取。
 
+## S3 存储配置须知
+
+本项目支持配置兼容 S3 的对象存储（如 AWS S3, MinIO, Cloudflare R2 自定义域名接入等）来存储附件。
+
+**重要提示：**
+
+如果您使用 S3 存储，必须在 S3 存储桶的配置中添加正确的 **CORS（跨域资源共享）** 策略，否则前端可能无法预览或下载附件（虽然附件下载功能现已通过 Worker 代理增强以规避此问题，但某些直接访问场景仍需 CORS）。
+
+推荐的 CORS 配置如下（以 AWS S3 JSON 格式为例）：
+
+```json
+[
+    {
+        "AllowedHeaders": [
+            "*"
+        ],
+        "AllowedMethods": [
+            "GET",
+            "PUT",
+            "HEAD",
+            "POST",
+            "DELETE"
+        ],
+        "AllowedOrigins": [
+            "https://your-domain.com",  // 替换为您的 Cloud Mail 部署域名
+            "http://localhost:*"        // 用于本地开发调试
+        ],
+        "ExposeHeaders": []
+    }
+]
+```
+
+请根据您的实际部署域名替换 `https://your-domain.com`。
+
 ## 目录结构
 
 ```
