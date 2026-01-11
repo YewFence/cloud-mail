@@ -1,6 +1,4 @@
 
-import { cvtR2Url } from "@/utils/convert.js";
-
 // 简单的 Quoted-Printable 编码实现
 function quotedPrintableEncode(str) {
     if (!str) return '';
@@ -166,7 +164,9 @@ export async function generateEmlContent(email, withAttachments = false) {
             // 标准做法是把所有附件都列在 mixed 部分，或者如果是 cid 引用，可以用 multipart/related (更复杂)
             // 这里为了通用性，采用 simple mixed attachment
             
-            const url = cvtR2Url(att.key);
+            // 使用相对路径通过后端代理下载，避免跨域 CORS 问题
+            // 假设 att.key 格式为 "attachments/..."
+            const url = att.key.startsWith('/') ? att.key : '/' + att.key;
             const base64Data = await fetchAttachmentAsBase64(url);
             
             if (base64Data) {
