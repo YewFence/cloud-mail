@@ -435,7 +435,7 @@ function deleteAccount(account) {
     userDeleteAccount(account.accountId).then(() => {
       getAccountList()
       ElMessage({
-        message: t('删除成功'),
+        message: t('delSuccessMsg'),
         type: "success",
         plain: true
       })

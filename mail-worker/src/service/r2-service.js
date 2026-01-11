@@ -1,7 +1,6 @@
 import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
-import { settingConst } from '../const/entity-const';
 
 const r2Service = {
 
@@ -23,22 +22,20 @@ const r2Service = {
 
 	async putObj(c, key, content, metadata) {
 
-		const { kvStorage } = await settingService.query(c);
+		const storageType = await this.storageType(c);
 
-		if (kvStorage === settingConst.kvStorage.OPEN) {
-
+		if (storageType === 'KV') {
 			await kvObjService.putObj(c, key, content, metadata);
+		}
 
-		} else if (c.env.r2) {
-
+		if (storageType === 'R2') {
 			await c.env.r2.put(key, content, {
 				httpMetadata: { ...metadata }
 			});
+		}
 
-		} else {
-
+		if (storageType === 'S3') {
 			await s3Service.putObj(c, key, content, metadata);
-
 		}
 
 	},
@@ -49,20 +46,18 @@ const r2Service = {
 
 	async delete(c, key) {
 
-		const { kvStorage } = await settingService.query(c);
+		const storageType = await this.storageType(c);
 
-		if (kvStorage === settingConst.kvStorage.OPEN) {
-
+		if (storageType === 'KV') {
 			await kvObjService.deleteObj(c, key);
+		}
 
-		} else if (c.env.r2) {
-
+		if (storageType === 'R2') {
 			await c.env.r2.delete(key);
+		}
 
-		} else {
-
+		if (storageType === 'S3'){
 			await s3Service.deleteObj(c, key);
-
 		}
 
 	}
