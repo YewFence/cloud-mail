@@ -1,41 +1,29 @@
 
+import { cvtR2Url } from "@/utils/convert.js";
+
 // 简单的 Quoted-Printable 编码实现
 function quotedPrintableEncode(str) {
     if (!str) return '';
-    // 将字符串转换为 UTF-8 字节数组
     const utf8Bytes = new TextEncoder().encode(str);
     let result = '';
     
     for (const byte of utf8Bytes) {
-        // 可打印 ASCII 字符 (除了 =)
         if ((byte >= 33 && byte <= 126 && byte !== 61) || byte === 32 || byte === 9) {
             result += String.fromCharCode(byte);
         } else {
-            // 需要编码的字符
             const hex = byte.toString(16).toUpperCase().padStart(2, '0');
             result += '=' + hex;
         }
     }
-    
-    // 处理行长限制 (76 字符) - 简化处理，每 75 字符强制换行
-    // 注意：标准的 QP 编码换行需要是 =\r\n
-    // 这里简单实现，对于邮件正文通常浏览器/客户端能容错
-    // 为了更标准，可以引入专门的库，但为了减少依赖，这里做一个基础实现
-    // 如果是 header，通常直接使用 base64 编码 (RFC 2047)
     return result;
 }
 
 // RFC 2047 Header 编码 (=?UTF-8?B?...?=)
 function encodeHeader(str) {
     if (!str) return '';
-    // 如果全是 ASCII，不需要编码
     if (/^[\x00-\x7F]*$/.test(str)) return str;
-    
-    // 使用 Base64 编码
-    // 注意：浏览器环境 btoa 需要处理 UTF-8 字符串
     const utf8Bytes = new TextEncoder().encode(str);
     const base64 = btoa(String.fromCharCode.apply(null, utf8Bytes));
-    
     return `=?UTF-8?B?${base64}?=`;
 }
 
@@ -48,19 +36,61 @@ function generateBoundary() {
     return '----=_NextPart_' + Math.random().toString(36).substring(2, 15) + '.' + Date.now();
 }
 
-export function generateEmlContent(email) {
-    const boundary = generateBoundary();
+// 获取文件的 Base64 内容
+async function fetchAttachmentAsBase64(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result;
+                // remove data:content/type;base64,
+                const base64 = base64String.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error('Fetch attachment failed', e);
+        return null;
+    }
+}
+
+// 根据文件名获取 Content-Type
+function getContentType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const map = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'pdf': 'application/pdf',
+        'txt': 'text/plain',
+        'html': 'text/html',
+        'zip': 'application/zip',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    return map[ext] || 'application/octet-stream';
+}
+
+export async function generateEmlContent(email, withAttachments = false) {
+    const mixedBoundary = generateBoundary();
+    const altBoundary = generateBoundary();
     const headers = [];
     
-    // From
+    // Headers
     let from = email.sendEmail;
     if (email.name) {
         from = `${encodeHeader(email.name)} <${email.sendEmail}>`;
     }
     headers.push(`From: ${from}`);
     
-    // To
-    // recipient 是 JSON 字符串 [{"address":"...","name":"..."}]
     try {
         const recipients = JSON.parse(email.recipient || '[]');
         const toList = recipients.map(r => {
@@ -69,77 +99,101 @@ export function generateEmlContent(email) {
         if (toList.length > 0) {
             headers.push(`To: ${toList.join(', ')}`);
         } else {
-            // 如果解析失败或为空，尝试使用 toEmail
              headers.push(`To: ${email.toEmail || email.recipient}`);
         }
     } catch (e) {
         headers.push(`To: ${email.recipient}`);
     }
     
-    // Subject
     headers.push(`Subject: ${encodeHeader(email.subject)}`);
-    
-    // Date
     headers.push(`Date: ${formatDate(email.createTime)}`);
-    
-    // MIME-Version
     headers.push('MIME-Version: 1.0');
     
-    // Content-Type
-    headers.push(`Content-Type: multipart/alternative;\r\n\tboundary="${boundary}"`);
-    
-    // Message-ID
     if (email.messageId) {
          headers.push(`Message-ID: ${email.messageId}`);
     }
 
+    // Determine content type based on attachments
+    const hasAttachments = withAttachments && email.attList && email.attList.length > 0;
+    
+    if (hasAttachments) {
+        headers.push(`Content-Type: multipart/mixed;\r\n\tboundary="${mixedBoundary}"`);
+    } else {
+        headers.push(`Content-Type: multipart/alternative;\r\n\tboundary="${altBoundary}"`);
+    }
+
     let emlBody = headers.join('\r\n') + '\r\n\r\n';
     
-    // Plain Text Part
-    emlBody += `--${boundary}\r\n`;
+    // If mixed, start the first part (which is alternative)
+    if (hasAttachments) {
+        emlBody += `--${mixedBoundary}\r\n`;
+        emlBody += `Content-Type: multipart/alternative;\r\n\tboundary="${altBoundary}"\r\n\r\n`;
+    }
+    
+    // --- Alternative Part (Text + HTML) ---
+    
+    // Plain Text
+    emlBody += `--${altBoundary}\r\n`;
     emlBody += 'Content-Type: text/plain; charset="UTF-8"\r\n';
     emlBody += 'Content-Transfer-Encoding: base64\r\n\r\n';
     
-    // 使用 Base64 编码正文，比 QP 编码更简单可靠且不容易出乱码
     const textContent = email.text || '';
     const utf8TextBytes = new TextEncoder().encode(textContent);
     const base64Text = btoa(String.fromCharCode.apply(null, utf8TextBytes));
-    // Base64 需要折行，每 76 字符换行
     emlBody += base64Text.match(/.{1,76}/g)?.join('\r\n') || '';
     emlBody += '\r\n\r\n';
     
     // HTML Part
-    emlBody += `--${boundary}\r\n`;
+    emlBody += `--${altBoundary}\r\n`;
     emlBody += 'Content-Type: text/html; charset="UTF-8"\r\n';
     emlBody += 'Content-Transfer-Encoding: base64\r\n\r\n';
     
     const htmlContent = email.content || email.text || '';
-    // 简单处理 html 中的图片链接，确保是绝对路径（如果需要）
-    // 目前系统中图片可能是 {{domain}}/key 的形式，在生成 EML 时最好替换为实际链接，以便客户端能加载
-    // 但这个工具函数里可能拿不到 domain 配置。
-    // 如果 email 对象里的 content 已经是处理过的（例如在 view 中 formatImage 之后的），那就最好。
-    // 这里假设传入的 email.content 是原始数据或已处理数据。
-    
     const utf8HtmlBytes = new TextEncoder().encode(htmlContent);
     const base64Html = btoa(String.fromCharCode.apply(null, utf8HtmlBytes));
     emlBody += base64Html.match(/.{1,76}/g)?.join('\r\n') || '';
     emlBody += '\r\n\r\n';
     
-    // End Boundary
-    emlBody += `--${boundary}--\r\n`;
+    emlBody += `--${altBoundary}--\r\n`;
     
+    // --- End Alternative Part ---
+
+    // --- Attachments Part ---
+    if (hasAttachments) {
+        for (const att of email.attList) {
+            // 只处理非内嵌图片附件，或者全部处理？
+            // 通常内嵌图片(cid)已经在HTML中引用了，但如果是 multipart/mixed 结构，
+            // 标准做法是把所有附件都列在 mixed 部分，或者如果是 cid 引用，可以用 multipart/related (更复杂)
+            // 这里为了通用性，采用 simple mixed attachment
+            
+            const url = cvtR2Url(att.key);
+            const base64Data = await fetchAttachmentAsBase64(url);
+            
+            if (base64Data) {
+                emlBody += `\r\n--${mixedBoundary}\r\n`;
+                emlBody += `Content-Type: ${getContentType(att.filename)}; name="${encodeHeader(att.filename)}"\r\n`;
+                emlBody += `Content-Transfer-Encoding: base64\r\n`;
+                emlBody += `Content-Disposition: attachment; filename="${encodeHeader(att.filename)}"\r\n\r\n`;
+                
+                emlBody += base64Data.match(/.{1,76}/g)?.join('\r\n') || '';
+                emlBody += '\r\n';
+            }
+        }
+        
+        emlBody += `\r\n--${mixedBoundary}--\r\n`;
+    }
+
     return emlBody;
 }
 
-export function downloadEml(email) {
+export async function downloadEml(email, withAttachments = false) {
     try {
-        const emlContent = generateEmlContent(email);
+        const emlContent = await generateEmlContent(email, withAttachments);
         const blob = new Blob([emlContent], { type: 'message/rfc822' });
         const url = URL.createObjectURL(blob);
         
         const link = document.createElement('a');
         link.href = url;
-        // 文件名处理，替换非法字符
         const filename = (email.subject || 'email').replace(/[/\\?%*:|"<>]/g, '_');
         link.download = `${filename}.eml`;
         

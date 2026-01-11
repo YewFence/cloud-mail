@@ -8,7 +8,9 @@
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="20" height="20" />
-      <Icon class="icon" @click="handleDownloadEml" icon="material-symbols:download" width="20" height="20" title="Download EML" />
+      <Icon class="icon" v-if="!downloadLoading" @click="handleDownloadEml(false)" icon="material-symbols:download" width="20" height="20" :title="$t('downloadEml')" />
+      <Icon class="icon" v-if="!downloadLoading" @click="handleDownloadEml(true)" icon="material-symbols:file-download" width="20" height="20" :title="$t('downloadEmlWithAtt')" />
+      <Icon class="icon spinning" v-if="downloadLoading" icon="eos-icons:loading" width="20" height="20" />
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -101,6 +103,7 @@ const emailStore = useEmailStore();
 const router = useRouter()
 const email = emailStore.contentData.email
 const showPreview = ref(false)
+const downloadLoading = ref(false)
 const srcList = reactive([])
 
 const { t } = useI18n()
@@ -150,14 +153,24 @@ function formateReceive(recipient) {
   return recipient.map(item => item.address).join(', ')
 }
 
-function handleDownloadEml() {
-  // 克隆一个 email 对象以避免修改原始数据
-  // 确保内容中 {{domain}} 已被替换
-  const emailToExport = { ...email };
-  if (emailToExport.content) {
-      emailToExport.content = formatImage(emailToExport.content);
+async function handleDownloadEml(withAttachments) {
+  if (downloadLoading.value) return;
+  
+  downloadLoading.value = true;
+  try {
+    // 克隆一个 email 对象以避免修改原始数据
+    // 确保内容中 {{domain}} 已被替换
+    const emailToExport = { ...email };
+    if (emailToExport.content) {
+        emailToExport.content = formatImage(emailToExport.content);
+    }
+    await downloadEml(emailToExport, withAttachments);
+  } catch (e) {
+    ElMessage.error(t('downloadFailed'));
+    console.error(e);
+  } finally {
+    downloadLoading.value = false;
   }
-  downloadEml(emailToExport);
 }
 
 function changeStar() {
