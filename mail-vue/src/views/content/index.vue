@@ -8,6 +8,7 @@
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="20" height="20" />
+      <Icon class="icon" @click="handleDownloadEml" icon="material-symbols:download" width="20" height="20" title="Download EML" />
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -91,6 +92,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {downloadEml} from "@/utils/eml-utils.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -146,6 +148,16 @@ function isImage(filename) {
 function formateReceive(recipient) {
   recipient = JSON.parse(recipient)
   return recipient.map(item => item.address).join(', ')
+}
+
+function handleDownloadEml() {
+  // 克隆一个 email 对象以避免修改原始数据
+  // 确保内容中 {{domain}} 已被替换
+  const emailToExport = { ...email };
+  if (emailToExport.content) {
+      emailToExport.content = formatImage(emailToExport.content);
+  }
+  downloadEml(emailToExport);
 }
 
 function changeStar() {
