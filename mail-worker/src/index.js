@@ -17,7 +17,7 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
-		if (['/static/', '/attachments/'].some(p => url.pathname.startsWith(p))) {
+		if (['/static/', '/attachments/', '/setting/websiteConfig'].some(p => url.pathname.startsWith(p))) {
 			req = new Request(url.toString(), req)
 			return app.fetch(req, env, ctx);
 		}
