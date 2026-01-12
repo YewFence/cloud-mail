@@ -166,7 +166,7 @@ export async function generateEmlContent(email, withAttachments = false) {
             
             // 使用相对路径通过后端代理下载，避免跨域 CORS 问题
             // 假设 att.key 格式为 "attachments/..."
-            const url = att.key.startsWith('/') ? att.key : '/' + att.key;
+            const url = '/api/' + att.key;
             const base64Data = await fetchAttachmentAsBase64(url);
             
             if (base64Data) {
