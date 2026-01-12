@@ -77,10 +77,11 @@ function getContentType(filename) {
     return map[ext] || 'application/octet-stream';
 }
 
-export async function generateEmlContent(email, withAttachments = false) {
+export async function generateEmlContent(email, withAttachments = false, onProgress) {
     const mixedBoundary = generateBoundary();
     const altBoundary = generateBoundary();
     const headers = [];
+    const parts = [];
     
     // Headers
     let from = email.sendEmail;
@@ -120,76 +121,98 @@ export async function generateEmlContent(email, withAttachments = false) {
         headers.push(`Content-Type: multipart/alternative;\r\n\tboundary="${altBoundary}"`);
     }
 
-    let emlBody = headers.join('\r\n') + '\r\n\r\n';
+    parts.push(headers.join('\r\n') + '\r\n\r\n');
     
     // If mixed, start the first part (which is alternative)
     if (hasAttachments) {
-        emlBody += `--${mixedBoundary}\r\n`;
-        emlBody += `Content-Type: multipart/alternative;\r\n\tboundary="${altBoundary}"\r\n\r\n`;
+        parts.push(`--${mixedBoundary}\r\n`);
+        parts.push(`Content-Type: multipart/alternative;\r\n\tboundary="${altBoundary}"\r\n\r\n`);
     }
     
     // --- Alternative Part (Text + HTML) ---
     
     // Plain Text
-    emlBody += `--${altBoundary}\r\n`;
-    emlBody += 'Content-Type: text/plain; charset="UTF-8"\r\n';
-    emlBody += 'Content-Transfer-Encoding: base64\r\n\r\n';
+    parts.push(`--${altBoundary}\r\n`);
+    parts.push('Content-Type: text/plain; charset="UTF-8"\r\n');
+    parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
     const textContent = email.text || '';
     const utf8TextBytes = new TextEncoder().encode(textContent);
     const base64Text = btoa(String.fromCharCode.apply(null, utf8TextBytes));
-    emlBody += base64Text.match(/.{1,76}/g)?.join('\r\n') || '';
-    emlBody += '\r\n\r\n';
+    parts.push(base64Text.match(/.{1,76}/g)?.join('\r\n') || '');
+    parts.push('\r\n\r\n');
     
     // HTML Part
-    emlBody += `--${altBoundary}\r\n`;
-    emlBody += 'Content-Type: text/html; charset="UTF-8"\r\n';
-    emlBody += 'Content-Transfer-Encoding: base64\r\n\r\n';
+    parts.push(`--${altBoundary}\r\n`);
+    parts.push('Content-Type: text/html; charset="UTF-8"\r\n');
+    parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
     const htmlContent = email.content || email.text || '';
     const utf8HtmlBytes = new TextEncoder().encode(htmlContent);
     const base64Html = btoa(String.fromCharCode.apply(null, utf8HtmlBytes));
-    emlBody += base64Html.match(/.{1,76}/g)?.join('\r\n') || '';
-    emlBody += '\r\n\r\n';
+    parts.push(base64Html.match(/.{1,76}/g)?.join('\r\n') || '');
+    parts.push('\r\n\r\n');
     
-    emlBody += `--${altBoundary}--\r\n`;
+    parts.push(`--${altBoundary}--\r\n`);
     
     // --- End Alternative Part ---
 
     // --- Attachments Part ---
+    let failedCount = 0;
     if (hasAttachments) {
+        let processedCount = 0;
+        const totalCount = email.attList.length;
+
         for (const att of email.attList) {
-            // 只处理非内嵌图片附件，或者全部处理？
-            // 通常内嵌图片(cid)已经在HTML中引用了，但如果是 multipart/mixed 结构，
-            // 标准做法是把所有附件都列在 mixed 部分，或者如果是 cid 引用，可以用 multipart/related (更复杂)
-            // 这里为了通用性，采用 simple mixed attachment
-            
             // 使用相对路径通过后端代理下载，避免跨域 CORS 问题
-            // 假设 att.key 格式为 "attachments/..."
             const url = '/api/' + att.key;
             const base64Data = await fetchAttachmentAsBase64(url);
             
+            parts.push(`\r\n--${mixedBoundary}\r\n`);
+            
             if (base64Data) {
-                emlBody += `\r\n--${mixedBoundary}\r\n`;
-                emlBody += `Content-Type: ${getContentType(att.filename)}; name="${encodeHeader(att.filename)}"\r\n`;
-                emlBody += `Content-Transfer-Encoding: base64\r\n`;
-                emlBody += `Content-Disposition: attachment; filename="${encodeHeader(att.filename)}"\r\n\r\n`;
+                parts.push(`Content-Type: ${getContentType(att.filename)}; name="${encodeHeader(att.filename)}"\r\n`);
+                parts.push(`Content-Transfer-Encoding: base64\r\n`);
+                parts.push(`Content-Disposition: attachment; filename="${encodeHeader(att.filename)}"\r\n\r\n`);
                 
-                emlBody += base64Data.match(/.{1,76}/g)?.join('\r\n') || '';
-                emlBody += '\r\n';
+                parts.push(base64Data.match(/.{1,76}/g)?.join('\r\n') || '');
+            } else {
+                console.error(`Failed to download attachment: ${att.filename} (key: ${att.key}). substituting with placeholder.`);
+                failedCount++;
+                // Handle failed download with a text placeholder
+                const errorMsg = `Failed to download attachment: ${att.filename}`;
+                const errorFilename = `${att.filename}.error.txt`;
+                
+                parts.push(`Content-Type: text/plain; charset="UTF-8"; name="${encodeHeader(errorFilename)}"\r\n`);
+                parts.push(`Content-Transfer-Encoding: base64\r\n`);
+                parts.push(`Content-Disposition: attachment; filename="${encodeHeader(errorFilename)}"\r\n\r\n`);
+                
+                const utf8Bytes = new TextEncoder().encode(errorMsg);
+                const base64Error = btoa(String.fromCharCode.apply(null, utf8Bytes));
+                parts.push(base64Error);
+            }
+            parts.push('\r\n');
+            
+            processedCount++;
+            if (onProgress) {
+                onProgress(Math.round((processedCount / totalCount) * 100));
             }
         }
         
-        emlBody += `\r\n--${mixedBoundary}--\r\n`;
+        parts.push(`\r\n--${mixedBoundary}--\r\n`);
+    } else if (onProgress) {
+        onProgress(100);
     }
 
-    return emlBody;
+    return {
+        blob: new Blob(parts, { type: 'message/rfc822' }),
+        failedCount
+    };
 }
 
-export async function downloadEml(email, withAttachments = false) {
+export async function downloadEml(email, withAttachments = false, onProgress) {
     try {
-        const emlContent = await generateEmlContent(email, withAttachments);
-        const blob = new Blob([emlContent], { type: 'message/rfc822' });
+        const { blob, failedCount } = await generateEmlContent(email, withAttachments, onProgress);
         const url = URL.createObjectURL(blob);
         
         const link = document.createElement('a');
@@ -202,6 +225,7 @@ export async function downloadEml(email, withAttachments = false) {
         
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        return failedCount;
     } catch (e) {
         console.error('Download EML failed', e);
         throw e;

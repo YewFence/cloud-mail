@@ -10,7 +10,10 @@
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="20" height="20" />
       <Icon class="icon" v-if="!downloadLoading" @click="handleDownloadEml(false)" icon="material-symbols:download" width="20" height="20" :title="$t('downloadEml')" />
       <Icon class="icon" v-if="!downloadLoading" @click="handleDownloadEml(true)" icon="material-symbols:file-download" width="20" height="20" :title="$t('downloadEmlWithAtt')" />
-      <Icon class="icon spinning" v-if="downloadLoading" icon="eos-icons:loading" width="20" height="20" />
+      <div v-if="downloadLoading" class="loading-container">
+        <Icon v-if="downloadPercentage === 0" class="icon spinning" icon="eos-icons:loading" width="20" height="20" />
+        <el-progress v-else type="circle" :width="20" :percentage="downloadPercentage" :show-text="false" :stroke-width="3" color="#409eff" />
+      </div>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -104,6 +107,7 @@ const router = useRouter()
 const email = emailStore.contentData.email
 const showPreview = ref(false)
 const downloadLoading = ref(false)
+const downloadPercentage = ref(0)
 const srcList = reactive([])
 
 const { t } = useI18n()
@@ -157,6 +161,7 @@ async function handleDownloadEml(withAttachments) {
   if (downloadLoading.value) return;
   
   downloadLoading.value = true;
+  downloadPercentage.value = 0;
   try {
     // 克隆一个 email 对象以避免修改原始数据
     // 确保内容中 {{domain}} 已被替换
@@ -164,12 +169,21 @@ async function handleDownloadEml(withAttachments) {
     if (emailToExport.content) {
         emailToExport.content = formatImage(emailToExport.content);
     }
-    await downloadEml(emailToExport, withAttachments);
+    const failedCount = await downloadEml(emailToExport, withAttachments, (progress) => {
+        downloadPercentage.value = progress;
+    });
+
+    if (failedCount > 0) {
+      ElMessage.warning(t('downloadCompletedWithErrors', { count: failedCount }));
+    } else {
+      ElMessage.success(t('downloadSuccess'));
+    }
   } catch (e) {
     ElMessage.error(t('downloadFailed'));
     console.error(e);
   } finally {
     downloadLoading.value = false;
+    downloadPercentage.value = 0;
   }
 }
 
@@ -438,6 +452,14 @@ const handleDelete = () => {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 
 .bottom-distance {

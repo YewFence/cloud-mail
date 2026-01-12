@@ -313,7 +313,12 @@ const en = {
     mustNotContainDesc: 'Separate with commas',
     setSuccess: 'Settings saved successfully',
     gridView: 'Grid View',
-    listView: 'List View'
+    listView: 'List View',
+    downloadEml: 'Download EML',
+    downloadEmlWithAtt: 'Download EML (with attachments)',
+    downloadSuccess: 'Download completed',
+    downloadCompletedWithErrors: 'Download completed, but {count} attachments failed',
+    downloadFailed: 'Download failed'
 }
 
 export default en
