@@ -20,6 +20,9 @@ const kvObjService = {
 	async toObjResp(c, key) {
 
 		const obj = await c.env.kv.getWithMetadata(key, { type: "arrayBuffer"});
+		if (obj.value === null) {
+			return new Response('Object Not Found', { status: 404 });
+		}
 
 		return new Response(obj.value, {
 			headers: {

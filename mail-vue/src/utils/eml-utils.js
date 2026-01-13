@@ -16,12 +16,18 @@ function quotedPrintableEncode(str) {
     return result;
 }
 
+const latin1Decoder = new TextDecoder('latin1');
+
+function bytesToBase64(bytes) {
+    return btoa(latin1Decoder.decode(bytes));
+}
+
 // RFC 2047 Header 编码 (=?UTF-8?B?...?=)
 function encodeHeader(str) {
     if (!str) return '';
     if (/^[\x00-\x7F]*$/.test(str)) return str;
     const utf8Bytes = new TextEncoder().encode(str);
-    const base64 = btoa(String.fromCharCode.apply(null, utf8Bytes));
+    const base64 = bytesToBase64(utf8Bytes);
     return `=?UTF-8?B?${base64}?=`;
 }
 
@@ -164,7 +170,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
     const utf8TextBytes = new TextEncoder().encode(textContent);
-    const base64Text = btoa(String.fromCharCode.apply(null, utf8TextBytes));
+    const base64Text = bytesToBase64(utf8TextBytes);
     parts.push(base64Text.match(/.{1,76}/g)?.join('\r\n') || '');
     parts.push('\r\n\r\n');
     
@@ -174,7 +180,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
     const utf8HtmlBytes = new TextEncoder().encode(htmlContent);
-    const base64Html = btoa(String.fromCharCode.apply(null, utf8HtmlBytes));
+    const base64Html = bytesToBase64(utf8HtmlBytes);
     parts.push(base64Html.match(/.{1,76}/g)?.join('\r\n') || '');
     parts.push('\r\n\r\n');
     
@@ -213,7 +219,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
                 parts.push(`Content-Disposition: attachment; filename="${encodeHeader(errorFilename)}"\r\n\r\n`);
                 
                 const utf8Bytes = new TextEncoder().encode(errorMsg);
-                const base64Error = btoa(String.fromCharCode.apply(null, utf8Bytes));
+                const base64Error = bytesToBase64(utf8Bytes);
                 parts.push(base64Error);
             }
             parts.push('\r\n');
