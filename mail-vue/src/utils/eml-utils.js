@@ -1,21 +1,4 @@
 
-// 简单的 Quoted-Printable 编码实现
-function quotedPrintableEncode(str) {
-    if (!str) return '';
-    const utf8Bytes = new TextEncoder().encode(str);
-    let result = '';
-    
-    for (const byte of utf8Bytes) {
-        if ((byte >= 33 && byte <= 126 && byte !== 61) || byte === 32 || byte === 9) {
-            result += String.fromCharCode(byte);
-        } else {
-            const hex = byte.toString(16).toUpperCase().padStart(2, '0');
-            result += '=' + hex;
-        }
-    }
-    return result;
-}
-
 const latin1Decoder = new TextDecoder('latin1');
 
 function bytesToBase64(bytes) {
@@ -54,7 +37,10 @@ function generateBoundary() {
 // 获取文件的 Base64 内容
 async function fetchAttachmentAsBase64(url) {
     try {
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) throw new Error(`Failed to fetch ${url}`);
         const blob = await response.blob();
         return new Promise((resolve, reject) => {
@@ -154,8 +140,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
         htmlContent += '<br/><hr/><h3>Attachments:</h3><ul>';
         
         for (const att of email.attList) {
-            // Encode filename for URL to ensure valid link
-            const attUrl = `${baseUrl}/api/${att.key}`;
+            const attUrl = `${baseUrl}/api/${encodeURIComponent(att.key)}`;
             
             // Text
             textContent += `- ${att.filename}: ${attUrl}\n`;
