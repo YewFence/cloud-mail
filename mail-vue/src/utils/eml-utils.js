@@ -35,7 +35,7 @@ function escapeHtml(str) {
 // RFC 2047 Header 编码 (=?UTF-8?B?...?=)
 function encodeHeader(str) {
     if (!str) return '';
-    if (/^[\x00-\x7F]*$/.test(str)) return str;
+    if (/^[\x20-\x7E]*$/.test(str)) return str;
     const utf8Bytes = new TextEncoder().encode(str);
     const base64 = bytesToBase64(utf8Bytes);
     return `=?UTF-8?B?${base64}?=`;
@@ -61,9 +61,17 @@ async function fetchAttachmentAsBase64(url) {
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64String = reader.result;
+                if (typeof base64String !== 'string') {
+                    reject(new Error('Invalid attachment data.'));
+                    return;
+                }
+                const parts = base64String.split(',');
+                if (parts.length < 2 || !parts[1]) {
+                    reject(new Error('Invalid attachment base64 payload.'));
+                    return;
+                }
                 // remove data:content/type;base64,
-                const base64 = base64String.split(',')[1];
-                resolve(base64);
+                resolve(parts[1]);
             };
             reader.onerror = reject;
             reader.readAsDataURL(blob);
