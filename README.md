@@ -147,15 +147,15 @@
             "DELETE"
         ],
         "AllowedOrigins": [
-            "https://your-domain.com",  // 替换为您的 Cloud Mail 部署域名
-            "http://localhost:*"        // 用于本地开发调试
+            "https://your-domain.com",
+            "http://localhost:*"
         ],
         "ExposeHeaders": []
     }
 ]
 ```
 
-请根据您的实际部署域名替换 `https://your-domain.com`。
+> **注意：** 请将 `https://your-domain.com` 替换为您的 Cloud Mail 部署域名，`http://localhost:*` 用于本地开发调试。
 
 ## 目录结构
 
