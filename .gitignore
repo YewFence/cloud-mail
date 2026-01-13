@@ -26,4 +26,11 @@ mail-vue/dist
 .wrangler
 .venv
 
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+
 wrangler.toml

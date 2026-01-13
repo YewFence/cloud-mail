@@ -313,6 +313,11 @@ const zh = {
     mustNotContainDesc: '输入多个值用,分开',
     setSuccess: '设置成功',
     gridView: '网格视图',
-    listView: '列表视图'
+    listView: '列表视图',
+    downloadEml: '下载邮件',
+    downloadEmlWithAtt: '下载邮件(含附件)',
+    downloadSuccess: '下载完成',
+    downloadCompletedWithErrors: '下载完成，但有 {count} 个附件下载失败',
+    downloadFailed: '下载失败'
 }
 export default zh

@@ -20,14 +20,21 @@ const kvObjService = {
 	async toObjResp(c, key) {
 
 		const obj = await c.env.kv.getWithMetadata(key, { type: "arrayBuffer"});
+		if (obj.value === null) {
+			return new Response('Object Not Found', { status: 404 });
+		}
 
-		return new Response(obj.value, {
-			headers: {
-				'Content-Type': obj.metadata?.contentType || 'application/octet-stream',
-				'Content-Disposition': obj.metadata?.contentDisposition || null,
-				'Cache-Control': obj.metadata?.cacheControl || null
-			}
-		});
+		const headers = {
+			'Content-Type': obj.metadata?.contentType || 'application/octet-stream',
+		};
+		if (obj.metadata?.contentDisposition) {
+			headers['Content-Disposition'] = obj.metadata.contentDisposition;
+		}
+		if (obj.metadata?.cacheControl) {
+			headers['Cache-Control'] = obj.metadata.cacheControl;
+		}
+
+		return new Response(obj.value, { headers });
 
 	}
 

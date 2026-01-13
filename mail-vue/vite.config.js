@@ -8,11 +8,28 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), 'VITE')
+
+    // Handle Cloudflare Access headers for proxy
+    const proxyHeaders = {}
+    if (env.VITE_CF_ACCESS_CLIENT_ID) {
+        proxyHeaders['CF-Access-Client-Id'] = env.VITE_CF_ACCESS_CLIENT_ID
+    }
+    if (env.VITE_CF_ACCESS_CLIENT_SECRET) {
+        proxyHeaders['CF-Access-Client-Secret'] = env.VITE_CF_ACCESS_CLIENT_SECRET
+    }
+
     return {
         server: {
             host: true,
             port: 3001,
             hmr: true,
+            proxy: {
+                '/api': {
+                    target: env.VITE_API_URL || 'http://127.0.0.1:8787',
+                    changeOrigin: true,
+                    headers: proxyHeaders
+                }
+            }
         },
         base: env.VITE_STATIC_URL || '/',
         plugins: [vue(),

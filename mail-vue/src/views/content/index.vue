@@ -8,6 +8,16 @@
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
       </span>
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReply" icon="la:reply" width="20" height="20" />
+      <el-tooltip v-if="!downloadLoading" :content="$t('downloadEml')" placement="bottom">
+        <Icon class="icon" @click="handleDownloadEml(false)" icon="material-symbols:download" width="20" height="20" />
+      </el-tooltip>
+      <el-tooltip v-if="!downloadLoading" :content="$t('downloadEmlWithAtt')" placement="bottom">
+        <Icon class="icon" style="color: var(--el-color-primary)" @click="handleDownloadEml(true)" icon="material-symbols:attach-email" width="20" height="20" />
+      </el-tooltip>
+      <div v-if="downloadLoading" class="loading-container">
+        <Icon v-if="downloadPercentage === 0" class="icon spinning" icon="eos-icons:loading" width="20" height="20" />
+        <el-progress v-else type="circle" :width="20" :percentage="downloadPercentage" :show-text="false" :stroke-width="3" color="#409eff" />
+      </div>
     </div>
     <div></div>
     <el-scrollbar class="scrollbar">
@@ -91,6 +101,7 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {downloadEml} from "@/utils/eml-utils.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -99,6 +110,8 @@ const emailStore = useEmailStore();
 const router = useRouter()
 const email = emailStore.contentData.email
 const showPreview = ref(false)
+const downloadLoading = ref(false)
+const downloadPercentage = ref(0)
 const srcList = reactive([])
 
 const { t } = useI18n()
@@ -146,6 +159,36 @@ function isImage(filename) {
 function formateReceive(recipient) {
   recipient = JSON.parse(recipient)
   return recipient.map(item => item.address).join(', ')
+}
+
+async function handleDownloadEml(withAttachments) {
+  if (downloadLoading.value) return;
+  
+  downloadLoading.value = true;
+  downloadPercentage.value = 0;
+  try {
+    // 克隆一个 email 对象以避免修改原始数据
+    // 确保内容中 {{domain}} 已被替换
+    const emailToExport = { ...email };
+    if (emailToExport.content) {
+        emailToExport.content = formatImage(emailToExport.content);
+    }
+    const failedCount = await downloadEml(emailToExport, withAttachments, (progress) => {
+        downloadPercentage.value = progress;
+    });
+
+    if (failedCount > 0) {
+      ElMessage.warning(t('downloadCompletedWithErrors', { count: failedCount }));
+    } else {
+      ElMessage.success(t('downloadSuccess'));
+    }
+  } catch (e) {
+    ElMessage.error(t('downloadFailed'));
+    console.error(e);
+  } finally {
+    downloadLoading.value = false;
+    downloadPercentage.value = 0;
+  }
 }
 
 function changeStar() {
@@ -413,6 +456,14 @@ const handleDelete = () => {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 
 .bottom-distance {

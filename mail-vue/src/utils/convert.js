@@ -2,7 +2,8 @@ import {useSettingStore} from "@/store/setting.js";
 export function cvtR2Url(key) {
 
     if (!key) {
-        return + 'https://' + ''
+        console.error('cvtR2Url error: key is empty or invalid');
+        return ''
     }
 
     if (key.startsWith('https://')) {
@@ -14,7 +15,7 @@ export function cvtR2Url(key) {
     let domain = settings.r2Domain
 
     if (!domain) {
-        return key;
+        return '/api/' + key;
     }
 
     if (!domain.startsWith('http')) {
@@ -30,7 +31,7 @@ export function cvtR2Url(key) {
 export function toOssDomain(domain) {
 
     if (!domain) {
-        return ''
+        return '/api'
     }
 
     if (!domain.startsWith('http')) {
