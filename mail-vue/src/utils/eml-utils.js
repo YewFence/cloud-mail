@@ -70,6 +70,7 @@ async function fetchAttachmentAsBase64(url) {
 
 // 根据文件名获取 Content-Type
 function getContentType(filename) {
+    if (!filename) return 'application/octet-stream';
     const ext = filename.split('.').pop().toLowerCase();
     const map = {
         'png': 'image/png',
@@ -102,17 +103,21 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     headers.push(`From: ${from}`);
     
     try {
-        const recipients = JSON.parse(email.recipient || '[]');
+        const recipients = (email.recipient && JSON.parse(email.recipient)) || [];
         const toList = recipients.map(r => {
             return r.name ? `${encodeHeader(r.name)} <${r.address}>` : r.address;
         });
         if (toList.length > 0) {
             headers.push(`To: ${toList.join(', ')}`);
-        } else {
-            headers.push(`To: ${email.toEmail || email.recipient}`);
+        } else if (email.toEmail) {
+            headers.push(`To: ${email.toEmail}`);
         }
     } catch (e) {
-        headers.push(`To: ${email.recipient}`);
+        // 当 email.recipient 不是有效的JSON数组字符串时，作为普通字符串回退
+        const toHeader = email.recipient || email.toEmail;
+        if (toHeader) {
+            headers.push(`To: ${toHeader}`);
+        }
     }
     
     headers.push(`Subject: ${encodeHeader(email.subject)}`);
@@ -200,7 +205,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
 
         for (const att of email.attList) {
             // 使用相对路径通过后端代理下载，避免跨域 CORS 问题
-            const url = '/api/' + att.key;
+            const url = '/api/' + encodeURIComponent(att.key);
             const base64Data = await fetchAttachmentAsBase64(url);
             
             parts.push(`\r\n--${mixedBoundary}\r\n`);
