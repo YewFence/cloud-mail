@@ -43,7 +43,8 @@ function encodeHeader(str) {
 
 function formatDate(dateStr) {
     if (!dateStr) return new Date().toUTCString();
-    return new Date(dateStr).toUTCString();
+    const date = new Date(dateStr);
+    return Number.isNaN(date.getTime()) ? new Date().toUTCString() : date.toUTCString();
 }
 
 function generateBoundary() {
