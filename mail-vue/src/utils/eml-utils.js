@@ -22,6 +22,16 @@ function bytesToBase64(bytes) {
     return btoa(latin1Decoder.decode(bytes));
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // RFC 2047 Header 编码 (=?UTF-8?B?...?=)
 function encodeHeader(str) {
     if (!str) return '';
@@ -104,7 +114,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
         if (toList.length > 0) {
             headers.push(`To: ${toList.join(', ')}`);
         } else {
-             headers.push(`To: ${email.toEmail || email.recipient}`);
+            headers.push(`To: ${email.toEmail || email.recipient}`);
         }
     } catch (e) {
         headers.push(`To: ${email.recipient}`);
@@ -115,7 +125,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     headers.push('MIME-Version: 1.0');
     
     if (email.messageId) {
-         headers.push(`Message-ID: ${email.messageId}`);
+        headers.push(`Message-ID: ${email.messageId}`);
     }
 
     // Determine content type based on attachments
@@ -142,7 +152,7 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
             textContent += `- ${att.filename}: ${attUrl}\n`;
             
             // HTML
-            htmlContent += `<li><a href="${attUrl}" target="_blank">${att.filename}</a></li>`;
+            htmlContent += `<li><a href="${attUrl}" target="_blank">${escapeHtml(att.filename)}</a></li>`;
         }
         
         htmlContent += '</ul>';
