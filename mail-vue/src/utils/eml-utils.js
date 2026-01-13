@@ -114,6 +114,33 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
 
     // Determine content type based on attachments
     const hasAttachments = withAttachments && email.attList && email.attList.length > 0;
+
+    // Prepare content (append attachment links if not downloading attachments)
+    let textContent = email.text || '';
+    let htmlContent = email.content || email.text || '';
+
+    if (!withAttachments && email.attList && email.attList.length > 0) {
+        const baseUrl = window.location.origin;
+        
+        // Append to Text
+        textContent += '\n\n----------------------------\nAttachments:\n';
+        
+        // Append to HTML
+        htmlContent += '<br/><hr/><h3>Attachments:</h3><ul>';
+        
+        for (const att of email.attList) {
+            // Encode filename for URL to ensure valid link
+            const attUrl = `${baseUrl}/api/${att.key}`;
+            
+            // Text
+            textContent += `- ${att.filename}: ${attUrl}\n`;
+            
+            // HTML
+            htmlContent += `<li><a href="${attUrl}" target="_blank">${att.filename}</a></li>`;
+        }
+        
+        htmlContent += '</ul>';
+    }
     
     if (hasAttachments) {
         headers.push(`Content-Type: multipart/mixed;\r\n\tboundary="${mixedBoundary}"`);
@@ -136,7 +163,6 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     parts.push('Content-Type: text/plain; charset="UTF-8"\r\n');
     parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
-    const textContent = email.text || '';
     const utf8TextBytes = new TextEncoder().encode(textContent);
     const base64Text = btoa(String.fromCharCode.apply(null, utf8TextBytes));
     parts.push(base64Text.match(/.{1,76}/g)?.join('\r\n') || '');
@@ -147,7 +173,6 @@ export async function generateEmlContent(email, withAttachments = false, onProgr
     parts.push('Content-Type: text/html; charset="UTF-8"\r\n');
     parts.push('Content-Transfer-Encoding: base64\r\n\r\n');
     
-    const htmlContent = email.content || email.text || '';
     const utf8HtmlBytes = new TextEncoder().encode(htmlContent);
     const base64Html = btoa(String.fromCharCode.apply(null, utf8HtmlBytes));
     parts.push(base64Html.match(/.{1,76}/g)?.join('\r\n') || '');
