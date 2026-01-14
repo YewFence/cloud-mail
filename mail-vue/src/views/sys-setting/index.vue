@@ -959,7 +959,7 @@ const resendList = computed(() => {
 function getUpdate() {
   if (getUpdateErrorCount > 5 || !getUpdateErrorCount) return
   if (currentVersion.value === unknownVersion) return
-  axios.get('https://api.github.com/repos/maillab/cloud-mail/releases/latest').then(({data}) => {
+  axios.get('https://api.github.com/repos/yewfence/cloud-mail/releases/latest').then(({data}) => {
     hasUpdate.value = data.name !== currentVersion.value
     getUpdateErrorCount = 0
   }).catch(e => {
