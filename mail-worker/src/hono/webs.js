@@ -8,7 +8,6 @@ import '../api/setting-api';
 import '../api/account-api';
 import '../api/star-api';
 import '../api/test-api';
-import '../api/r2-api';
 import '../api/storage-api';
 import '../api/resend-api';
 import '../api/my-api';
