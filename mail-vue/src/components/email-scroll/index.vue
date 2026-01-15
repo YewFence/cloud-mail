@@ -28,13 +28,21 @@
     </div>
 
     <div ref="scroll" class="scroll">
-      <el-scrollbar ref="scrollbarRef" style="height: 100%">
-        <div class="scroll-box" :infinite-scroll-immediate="false" v-infinite-scroll="loadData"
-             infinite-scroll-distance="3000">
-          <div v-if="(skeleton && !loading)" v-for="item in emailList" :key="item.emailId">
-            <div class="email-row"
+      <UseVirtualList ref="scrollbarRef"
+                        @scroll="onScroll"
+                        :list="list"
+                        :options="{ itemHeight: itemHeight, overscan: 15 }"
+                        class="virtual"
+                        style="height: 100%"
+                        v-if="!loading && emailList.length > 0"
+                        :key="keyCount"
+        >
+          <template #default="{ data: item, index }">
+            <div :class="'email-row ' + props.type"
                  :data-checked="item.checked"
                  @click="jumpDetails(item)"
+                 v-if="!item.expand"
+                 :key="item.emailId"
             >
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
                            v-model="item.checked" @click.stop></el-checkbox>
@@ -47,29 +55,11 @@
 
                 <div class="email-sender" :style=" (showStatus ? 'gap: 10px;' : '') + ((item.unread === EmailUnreadEnum.UNREAD && showUnread)  ? 'font-weight: bold' : '')">
                   <div class="email-status" v-if="showStatus">
-                    <el-tooltip v-if="item.status ===  0" effect="dark" :content="$t('received')">
-                      <Icon icon="ic:round-mark-email-read" style="color: #51C76B" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  1" effect="dark" :content="$t('sent')">
-                      <Icon icon="bi:send-arrow-up-fill" style="color: #51C76B" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  2" effect="dark" :content="$t('delivered')">
-                      <Icon icon="bi:send-check-fill" style="color: #51C76B" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  3 || item.status === 8" effect="dark" :content="$t('bounced')">
-                      <Icon icon="bi:send-x-fill" style="color: #F56C6C" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  4" effect="dark" :content="$t('complained')">
-                      <Icon icon="bi:send-exclamation-fill" style="color:#FBBD08" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  5" effect="dark" :content="$t('delayed')">
-                      <Icon icon="bi:send-arrow-up-fill" style="color:#FBBD08" width="20" height="20"/>
-                    </el-tooltip>
-                    <el-tooltip v-if="item.status ===  7" effect="dark" :content="$t('noRecipient')">
-                      <Icon icon="ic:round-mark-email-read" style="color:#FBBD08" width="20" height="20"/>
+                    <el-tooltip effect="dark" :content="item.statusIcon.content">
+                      <Icon :icon="item.statusIcon.icon" :style="`color: ${item.statusIcon.color}`" width="20" height="20"/>
                     </el-tooltip>
                     <div class="del-status" v-if="item.isDel">
-                      <el-tooltip effect="dark" :content="$t('selectDeleted')">
+                      <el-tooltip effect="dark" :content="item.isDelContent">
                         <Icon class="icon" icon="mdi:email-remove" width="20" height="20"/>
                       </el-tooltip>
                     </div>
@@ -84,7 +74,7 @@
                       <Icon v-if="item.isStar" icon="fluent-color:star-16" width="18" height="18"/>
                     </span>
                   </span>
-                  <span class="phone-time">{{ fromNow(item.createTime) }}</span>
+                  <span class="phone-time">{{ item.formatCreateTime }}</span>
                 </div>
                 <div>
                   <div class="email-text">
@@ -94,7 +84,7 @@
                         {{ item.subject || '\u200B' }}
                       </slot>
                     </span>
-                    <span class="email-content">{{ htmlToText(item) || '\u200B' }}</span>
+                    <span class="email-content">{{ item.formatText || '\u200B' }}</span>
                   </div>
                   <div class="user-info" v-if="showUserInfo">
                     <div class="user">
@@ -113,61 +103,46 @@
                 </div>
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
-                <span class="email-time" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ fromNow(item.createTime) }}</span>
+                <span class="email-time" :style="(item.unread === EmailUnreadEnum.UNREAD && showUnread) ? 'font-weight: bold' : ''">{{ item.formatCreateTime }}</span>
               </div>
             </div>
-          </div>
-          <template v-if="skeleton">
-            <skeletonBlock v-if="firstLoad && showFirstLoading"
-                           :rows="20"
+            <skeletonBlock v-else-if="item.expand === 'loading'"
+                           :rows="1"
                            :showStar="showStar"
                            :accountShow="accountShow"
                            :showStatus="showStatus"
                            :showUserInfo="showUserInfo"
                            :type="type"/>
-            <skeletonBlock v-if="loading"
-                           :rows="skeletonRows"
-                           :showStar="showStar"
-                           :accountShow="accountShow"
-                           :showStatus="showStatus"
-                           :showUserInfo="showUserInfo"
-                           :type="type"/>
-            <skeletonBlock v-if="followLoading"
-                           :rows="isMobile ? 1 : 2"
-                           :showStar="showStar"
-                           :accountShow="accountShow"
-                           :showStatus="showStatus"
-                           :showUserInfo="showUserInfo"
-                           :type="type"/>
-          </template>
-          <template v-else>
-            <div></div>
-            <div class="loading" :class="loading ? 'loading-show' : 'loading-hide'"
-                 :style="firstLoad ? 'background: transparent' : ''">
-              <Loading/>
-            </div>
-            <div class="follow-loading" v-if="followLoading">
-              <Loading/>
+            <div class="noLoading" v-else-if="item.expand === 'noMoreData'">
+              <div>{{ $t('noMoreData') }}</div>
             </div>
           </template>
-          <div class="noLoading" v-if="noLoading && emailList.length > 0 && !(skeleton && loading)">
-            <div>{{ $t('noMoreData') }}</div>
-          </div>
-          <div class="empty" v-if="noLoading && emailList.length === 0 && !(skeleton && loading)">
-            <el-empty :image-size="isMobile ? 120 : 0" :description="$t('noMessagesFound')"/>
-          </div>
-        </div>
-      </el-scrollbar>
+        </UseVirtualList>
+      <skeletonBlock v-if="firstLoad && showFirstLoading"
+                       :rows="20"
+                       :showStar="showStar"
+                       :accountShow="accountShow"
+                       :showStatus="showStatus"
+                       :showUserInfo="showUserInfo"
+                       :type="type"/>
+      <skeletonBlock v-if="loading"
+                       :rows="skeletonRows"
+                       :showStar="showStar"
+                       :accountShow="accountShow"
+                       :showStatus="showStatus"
+                       :showUserInfo="showUserInfo"
+                       :type="type"/>
+      <div class="empty" v-if="noLoading && emailList.length === 0 && !loading">
+        <el-empty :image-size="isMobile ? 120 : 0" :description="$t('noMessagesFound')"/>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import Loading from "@/components/loading/index.vue";
 import {Icon} from "@iconify/vue";
 import skeletonBlock from "@/components/email-scroll/skeleton/index.vue"
-import {computed, onActivated, reactive, ref, watch} from "vue";
-import {onBeforeRouteLeave} from "vue-router";
+import {computed, onActivated, reactive, ref, watch, nextTick} from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -175,6 +150,8 @@ import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import { UseVirtualList } from '@vueuse/components'
+import { useScroll } from '@vueuse/core'
 
 const props = defineProps({
   getEmailList: Function,
@@ -216,10 +193,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  skeleton: {
-    type: Boolean,
-    default: true
-  },
   showFirstLoading: {
     type: Boolean,
     default: true
@@ -239,6 +212,7 @@ const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
 const emailList = reactive([])
+const expandList = reactive([])
 const total = ref(0);
 const checkAll = ref(false);
 const isIndeterminate = ref(false);
@@ -250,6 +224,8 @@ const scrollbarRef = ref(null)
 let reqLock = false
 let isMobile = ref(innerWidth < 1367)
 let skeletonRows = 0
+const timePaddingRight = ref('');
+const keyCount = ref(0)
 const queryParam = reactive({
   emailId: 0,
   size: 50,
@@ -267,18 +243,83 @@ defineExpose({
 })
 
 onActivated(() => {
-  scroll.value.scrollTop = scrollTop
+  requestAnimationFrame(() => {
+    const index = scrollTop / itemHeight.value
+    scrollbarRef.value?.scrollTo(index);
+  })
 })
 
 getEmailList()
 
-onBeforeRouteLeave(() => {
-  scrollTop = scroll.value.scrollTop
+window.onresize = () => {
+  isMobile.value = innerWidth < 1367
+}
+
+function onScroll(e) {
+  scrollTop = e.target.scrollTop;
+}
+
+const { arrivedState } = useScroll(scrollbarRef, {
+  offset: { bottom: 1200 }
 })
 
-window.onresize = () => {
-  isMobile = innerWidth < 1367
-}
+
+const list = computed(() => {
+  return [...emailList, ...expandList]
+})
+
+const itemHeight = computed(() => {
+    if (props.type === 'all-email') {
+      return isMobile.value ? 132 : 65;
+    } else  {
+      return isMobile.value ? 83 : 48;
+    }
+})
+
+watch(emailList, () => {
+  updateHasScrollbar();
+})
+
+watch(scrollbarRef, () => {
+  updateHasScrollbar();
+})
+
+// 强制刷新 (itemHeight 更改后虚拟滚动列表不会自己更新)
+watch(itemHeight, () => {
+  keyCount.value ++
+})
+
+watch(followLoading, (isFollowLoading) => {
+  if (isFollowLoading) {
+    expandList.push({
+      emailId: 0,
+      expand: 'loading'
+    })
+  } else {
+    const index = expandList.findIndex(item => item.expand === 'loading')
+    expandList.splice(index, 1);
+  }
+});
+
+watch(noLoading, (isNoLoading) => {
+  if (isNoLoading) {
+    expandList.push({
+      emailId: 0,
+      expand: 'noMoreData'
+    })
+  } else {
+    const index = expandList.findIndex(item => item.expand === 'noMoreData')
+    expandList.splice(index, 1);
+  }
+})
+
+
+// 监听是否到达底部
+watch(() => arrivedState.bottom, (isBottom) => {
+  if (isBottom && !loading.value) {
+    loadData();
+  }
+});
 
 watch(
     () => emailList.map(item => item.checked),
@@ -312,6 +353,19 @@ watch(() => emailStore.addStarEmailId, () => {
     }
   })
 })
+
+function updateHasScrollbar() {
+  nextTick(() => {
+    const doc = document.querySelector('.virtual');
+    if (doc) {
+      if (doc.scrollHeight > doc.clientHeight) {
+        timePaddingRight.value = '5px';
+      } else {
+        timePaddingRight.value = '15px'
+      }
+    }
+  })
+}
 
 function getSkeletonRows() {
   if (emailList.length > 20) return skeletonRows = 20
@@ -444,9 +498,13 @@ function addItem(email) {
     return
   }
 
+  email.formatText = htmlToText(email);
+  email.formatCreateTime = fromNow(email.formatCreateTime);
+
   if (props.timeSort) {
     if (noLoading.value) {
-      emailList.push(email)
+      handleList([email]);
+      emailList.push(email);
     }
 
     if (email.emailId > latestEmail.value.emailId) {
@@ -461,10 +519,12 @@ function addItem(email) {
   const index = emailList.findIndex(item => item.emailId < email.emailId)
 
   if (index !== -1) {
+    handleList([email]);
     emailList.splice(index, 0, email);
   } else {
     if (noLoading.value) {
-      emailList.push(email)
+      handleList([email]);
+      emailList.push(email);
     }
   }
 
@@ -518,6 +578,7 @@ function getEmailList(refresh = false) {
   } else {
     getSkeletonRows()
     loading.value = true
+    scrollTop = 0
   }
 
   if (emailList.length === 0) {
@@ -545,8 +606,9 @@ function getEmailList(refresh = false) {
     }
 
     latestEmail.value = data.latestEmail
-    emailList.push(...list);
 
+    handleList(list);
+    emailList.push(...list);
     if (refresh) scrollbarRef.value?.setScrollTop(0);
 
     noLoading.value = data.list.length < queryParam.size;
@@ -557,6 +619,26 @@ function getEmailList(refresh = false) {
   }).finally(() => {
     loading.value = false
     reqLock = false
+  })
+}
+
+function handleList(list) {
+  list.forEach(email => {
+    email.formatText = htmlToText(email)
+    email.formatCreateTime = fromNow(email.createTime);
+    email.test = t('received')
+    const statusIconMap = {
+      0: { icon: 'ic:round-mark-email-read', color: '#51C76B', content: t('received') },
+      1: { icon: 'bi:send-arrow-up-fill',  color: '#51C76B', content: t('sent') },
+      2: { icon: 'bi:send-check-fill',     color: '#51C76B', content: t('delivered') },
+      3: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
+      8: { icon: 'bi:send-x-fill',         color: '#F56C6C', content: t('bounced') },
+      4: { icon: 'bi:send-exclamation-fill', color: '#FBBD08', content: t('complained') },
+      5: { icon: 'bi:send-arrow-up-fill',  color: '#FBBD08', content: t('delayed') },
+      7: { icon: 'ic:round-mark-email-read', color: '#FBBD08', content: t('noRecipient') },
+    };
+    if (email.isDel) email.isdelContent = t('selectDeleted');
+    email.statusIcon = statusIconMap[email.status];
   })
 }
 
@@ -594,12 +676,11 @@ function loadData() {
 
 .scroll {
   margin: 0;
-  overflow: auto;
   height: 100%;
-  position: relative;
+  overflow: hidden;
 
-  .scroll-box {
-    height: 100%;
+  .virtual {
+    will-change: scroll-position;
   }
 
   .empty {
@@ -614,7 +695,7 @@ function loadData() {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 15px 0;
+    padding: 15px 0 0 0;
     color: var(--secondary-text-color);
   }
 
@@ -659,7 +740,16 @@ function loadData() {
   align-items: center;
   position: relative;
   transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-
+  height: 48px;
+  @media (max-width: 1366px) {
+    height: 83px;
+  }
+  &.all-email {
+    height: 65px;
+    @media (max-width: 1366px) {
+      height: 132px;
+    }
+  }
   .user-info {
     display: flex;
     flex-wrap: wrap;
@@ -712,7 +802,7 @@ function loadData() {
       justify-content: start;
       height: 100%;
       align-self: start;
-      padding-top: 3px;
+      padding-bottom: 30px;
     }
   }
 
@@ -900,7 +990,7 @@ function loadData() {
 }
 
 .email-time {
-  padding-right: 16px !important;
+  padding-right: v-bind(timePaddingRight);
 }
 
 :deep(.el-scrollbar__view) {

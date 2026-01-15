@@ -54,7 +54,7 @@ const en = {
 	botVerifyFail: 'Bot verification failed, please try again',
 	authExpired: 'Authentication has expired. Please sign in again',
 	unauthorized: 'Unauthorized',
-	bannedSend: 'You are banned from sending emails',
+	bannedSend: 'You do not have permission to send emails',
 	initSuccess: 'Successfully initialized',
 	noDomainPermAdd: "No permission to add this domain email",
 	noDomainPermReg: "No permission to register this domain email",

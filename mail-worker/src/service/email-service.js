@@ -539,12 +539,6 @@ const emailService = {
 
 		const conditions = [];
 
-		if (timeSort) {
-			conditions.push(gt(email.emailId, emailId));
-		} else {
-			conditions.push(lt(email.emailId, emailId));
-		}
-
 		if (type === 'send') {
 			conditions.push(eq(email.type, emailConst.type.SEND));
 		}
@@ -585,6 +579,12 @@ const emailService = {
 		conditions.push(ne(email.status, emailConst.status.SAVING));
 
 		const countConditions = [...conditions];
+
+		if (timeSort) {
+			conditions.unshift(gt(email.emailId, emailId));
+		} else {
+			conditions.unshift(lt(email.emailId, emailId));
+		}
 
 		const query = orm(c).select({ ...email, userEmail: user.email })
 			.from(email)
