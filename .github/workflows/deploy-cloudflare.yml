@@ -211,9 +211,7 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
-      - name: 🛠️ Render Config
-        id: render
-        working-directory: ./mail-worker
+      - name : "🔍 Validate Configuration"
         run: |
           echo "🔍 Configuration Check..."
           
@@ -232,6 +230,10 @@ jobs:
             echo "❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
             exit 1
           fi
+      - name: 🛠️ Render Config
+        id: render
+        working-directory: ./mail-worker
+        run: |
 
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
           CONFIG_FILE="wrangler.generated.toml"
