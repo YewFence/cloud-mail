@@ -9,148 +9,285 @@ on:
   workflow_dispatch:
 
 jobs:
-  Deploy-cloud-mail:
-    name: 🏗️ Build and Deploy
+  # Job 1: Resource Provisioning
+  # Checks if resources exist, creates them if missing, and outputs IDs.
+  # Skips execution entirely if IDs are already provided in Secrets/Vars.
+  provision:
+    name: 🛠️ Provision Resources
     runs-on: ubuntu-latest
-
+    outputs:
+      kv_id: ${{ steps.set_outputs.outputs.kv_id }}
+      d1_id: ${{ steps.set_outputs.outputs.d1_id }}
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
+      # Load potential IDs from configuration
+      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN}}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
-      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
-      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-      DOMAIN: ${{ secrets.DOMAIN }}
-      ADMIN: ${{ secrets.ADMIN }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID }}
-      LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET }}
-      LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL }}
-      LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH }}
+
+    steps:
+      - name: ➡️ Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # KV Provisioning Logic
+      # ------------------------------------------------------------------
+      
+      # 1. List KVs (Only if ID is missing)
+      - name: 🔍 Check Existing KV
+        if: env.KV_NAMESPACE_ID == ''
+        id: list_kv
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: kv namespace list
+          quiet: false
+
+      # 2. Parse List & Decide (Only if ID is missing)
+      - name: 🧠 Process KV Check
+        if: env.KV_NAMESPACE_ID == ''
+        id: parse_kv
+        shell: bash
+        env:
+          KV_JSON: ${{ steps.list_kv.outputs.command-output }}
+        run: |
+          # Try to find ID by name
+          EXISTING_ID=$(echo "$KV_JSON" | jq -r ".[] | select(.title == \"$NAME\") | .id")
+          
+          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
+            echo "✅ Found existing KV: $EXISTING_ID"
+            echo "KV_NAMESPACE_ID=$EXISTING_ID" >> $GITHUB_ENV
+            echo "need_create=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ KV not found. Need creation."
+            echo "need_create=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 3. Create KV (Only if needed)
+      - name: 🔨 Create KV
+        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: kv namespace create "${{ env.NAME }}"
+
+      # 4. Get New KV ID (Only if created)
+      # Re-listing is safer than parsing creation output which format might change
+      - name: 🔄 Get New KV ID
+        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
+        id: list_kv_new
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: kv namespace list
+
+      - name: 📥 Capture New KV ID
+        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
+        shell: bash
+        env:
+          KV_JSON: ${{ steps.list_kv_new.outputs.command-output }}
+        run: |
+          NEW_ID=$(echo "$KV_JSON" | jq -r ".[] | select(.title == \"$NAME\") | .id")
+          echo "✅ Created KV ID: $NEW_ID"
+          echo "KV_NAMESPACE_ID=$NEW_ID" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------------
+      # D1 Provisioning Logic
+      # ------------------------------------------------------------------
+
+      # 1. List D1s (Only if ID is missing)
+      - name: 🔍 Check Existing D1
+        if: env.D1_DATABASE_ID == ''
+        id: list_d1
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 list --json
+          quiet: false
+
+      # 2. Parse List & Decide (Only if ID is missing)
+      - name: 🧠 Process D1 Check
+        if: env.D1_DATABASE_ID == ''
+        id: parse_d1
+        shell: bash
+        env:
+          DB_JSON: ${{ steps.list_d1.outputs.command-output }}
+        run: |
+          EXISTING_ID=$(echo "$DB_JSON" | jq -r ".[] | select(.name == \"$NAME\") | .uuid")
+          
+          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
+            echo "✅ Found existing D1: $EXISTING_ID"
+            echo "D1_DATABASE_ID=$EXISTING_ID" >> $GITHUB_ENV
+            echo "need_create=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ D1 not found. Need creation."
+            echo "need_create=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 3. Create D1 (Only if needed)
+      - name: 🔨 Create D1
+        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 create "${{ env.NAME }}"
+
+      # 4. Get New D1 ID (Only if created)
+      - name: 🔄 Get New D1 ID
+        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
+        id: list_d1_new
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 list --json
+
+      - name: 📥 Capture New D1 ID
+        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
+        shell: bash
+        env:
+          DB_JSON: ${{ steps.list_d1_new.outputs.command-output }}
+        run: |
+          NEW_ID=$(echo "$DB_JSON" | jq -r ".[] | select(.name == \"$NAME\") | .uuid")
+          echo "✅ Created D1 ID: $NEW_ID"
+          echo "D1_DATABASE_ID=$NEW_ID" >> $GITHUB_ENV
+
+      # Final Output Step
+      - name: 📤 Export IDs
+        id: set_outputs
+        run: |
+          echo "kv_id=$KV_NAMESPACE_ID" >> $GITHUB_OUTPUT
+          echo "d1_id=$D1_DATABASE_ID" >> $GITHUB_OUTPUT
+
+  # Job 2: Build & Deploy
+  deploy:
+    name: 🏗️ Build & Deploy
+    needs: provision
+    runs-on: ubuntu-latest
+    env:
+      # Use IDs from provision job
+      KV_NAMESPACE_ID: ${{ needs.provision.outputs.kv_id }}
+      D1_DATABASE_ID: ${{ needs.provision.outputs.d1_id }}
+      
+      # Standard Vars
+      NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN}}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME || vars.R2_BUCKET_NAME }}
+      DOMAIN: ${{ secrets.DOMAIN || vars.DOMAIN }}
+      ADMIN: ${{ secrets.ADMIN}}
+      JWT_SECRET: ${{ secrets.JWT_SECRET}}
+      LINUXDO_CLIENT_ID: ${{ secrets.LINUXDO_CLIENT_ID || vars.LINUXDO_CLIENT_ID }}
+      LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET}}
+      LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL}}
+      LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
 
     outputs:
       deployment_skipped: ${{ steps.render.outputs.deployment_skipped }}
-      worker_url: ${{ steps.deploy.outputs.deployment-url }}
 
     steps:
-      - name: ➡️ 检出代码仓库 - Checkout repository
+      - name: ➡️ Checkout repository
         uses: actions/checkout@v4
 
-      - name: 📦 设置 pnpm - Setup pnpm
+      - name: 📦 Setup pnpm
         uses: pnpm/action-setup@v4.1.0
         with:
           version: latest
 
-      - name: 📦 设置 Node.js - Setup Node.js
+      - name: 📦 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "pnpm"
           cache-dependency-path: "./mail-worker/pnpm-lock.yaml"
 
-      - name: 📥 安装依赖 - Install dependencies
+      - name: 📥 Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
 
-      - name: 🛠️ 设置环境变量 - Render Config
+      - name: 🛠️ Render Config
         id: render
         working-directory: ./mail-worker
         run: |
-          echo "🔍 Starting configuration check..."
-
-          # 1. Check ADMIN
-          if [ -z "$ADMIN" ]; then
-            echo "❌ ADMIN variable cannot be empty."
+          echo "🔍 Configuration Check..."
+          
+          # Basic Validation
+          if [ -z "$ADMIN" ] || [ -z "$JWT_SECRET" ]; then
+            echo "❌ ADMIN and JWT_SECRET are required."
+            exit 1
+          fi
+          
+          if grep -q '[?%#/\\]' <<< "$JWT_SECRET"; then
+            echo "❌ JWT_SECRET contains invalid characters."
             exit 1
           fi
 
-          # 2. Check JWT_SECRET
-          if [ -z "$JWT_SECRET" ] || grep -q '[?%#/\\]' <<< "$JWT_SECRET"; then
-            echo "❌ JWT_SECRET variable is empty or contains invalid characters (?, %, #, /, \\)."
-            exit 1
-          fi
-
-          # 3. Check DOMAIN (Must be JSON array)
           if ! jq -e 'type == "array"' <<< "$DOMAIN" >/dev/null 2>&1; then
-            echo "❌ DOMAIN variable must be a JSON array (e.g., [\"example.com\"])."
+            echo "❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
             exit 1
           fi
 
-          # 4. Check IDs (Skip deployment if missing, don't fail)
-          if [ -z "$D1_DATABASE_ID" ] || [ -z "$KV_NAMESPACE_ID" ]; then
-            echo "⚠️ Required secrets (D1_DATABASE_ID or KV_NAMESPACE_ID) are not set."
-            echo "❌ Skipping deployment."
-            echo "deployment_skipped=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
-          
-          CONFIG_TEMPLATE="wrangler-action.toml"
           CONFIG_FILE="wrangler.generated.toml"
-
-          echo "⚙️ 渲染配置文件..."
           
-          # 1. 复制模板，只对 DOMAIN 去掉引号（因为它可能是数组）
-          cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
+          # Copy & Replace
+          cp "wrangler-action.toml" "$CONFIG_FILE"
           sed -i 's/"\${DOMAIN}"/${DOMAIN}/g' "$CONFIG_FILE"
           
-          # 2. 使用 envsubst 一次性替换所有环境变量
+          # Envsubst (IDs from provision job are automatically available in env)
           envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
 
-          # 3. 如果没有 R2，删除配置块
-          if [ -z "$R2_BUCKET_NAME" ]; then
-            yq -i -p=toml -o=toml 'del(.r2_buckets)' "$CONFIG_FILE"
-          fi
-
-          # 4. 如果没有 LinuxDO 配置，删除相关变量
+          # Optional Features Cleanup
+          [ -z "$R2_BUCKET_NAME" ] && yq -i -p=toml -o=toml 'del(.r2_buckets)' "$CONFIG_FILE"
+          
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
-            echo "ℹ️ LinuxDO configuration not found, removing related variables..."
-            yq -i -p=toml -o=toml 'del(.vars.linuxdo_client_id) | del(.vars.linuxdo_client_secret) | del(.vars.linuxdo_callback_url) | del(.vars.linuxdo_switch)' "$CONFIG_FILE"
+            yq -i -p=toml -o=toml 'del(.vars.linuxdo_client_id, .vars.linuxdo_client_secret, .vars.linuxdo_callback_url, .vars.linuxdo_switch)' "$CONFIG_FILE"
           fi
 
-          # 5. 验证 TOML 语法
+          # Validation
           if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
-            echo "❌ TOML 语法错误，跳过部署"
+            echo "❌ Generated TOML is invalid."
             echo "deployment_skipped=true" >> $GITHUB_OUTPUT
             exit 0
           fi
+          
+          echo "✅ Config generated."
+          echo "Using KV: $KV_NAMESPACE_ID"
+          echo "Using D1: $D1_DATABASE_ID"
 
-          echo "🔍 Debug: Checking configuration after rendering..."
-          echo "R2_BUCKET_NAME value: '$R2_BUCKET_NAME'"
-          echo "DOMAIN value: '$DOMAIN'"
-
-      - name: 🚀 部署 - Deploy
+      - name: 🚀 Deploy
         id: deploy
         if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
           command: deploy -c wrangler.generated.toml
 
-      - name: 🗄️ 数据库迁移 - Apply D1 Migrations
+      - name: 🗄️ D1 Migrations
         if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
           command: d1 migrations apply cloud-mail --remote --config wrangler.generated.toml
 
-      - name: 📣 部署状态 - Notify Final Status
+      - name: 📣 Final Status
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            if [ "${{ steps.render.outputs.deployment_skipped }}" == "true" ]; then
-              echo "❌ Deployment was skipped due to missing configuration."
-              exit 1
-            else
-              echo "🎉🎉🎉 Hooray! Deployment completed successfully! 🎉🎉🎉"
-            fi
+             echo "🎉 Deployment Success!"
           else
-            echo "❌❌❌ Oh no! The deployment failed. Please check the logs above for errors. ❌❌❌"
-            exit 1
+             echo "❌ Deployment Failed."
+             exit 1
           fi
 
       - name: Delete workflow runs
