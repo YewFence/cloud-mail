@@ -334,7 +334,10 @@ const en = {
     searchUser: 'Search by user',
     searchEmail: 'Search by Email',
     searchSender: 'Search by Sender',
-    userEmail: 'Email Address'
+    userEmail: 'Email Address',
+    linuxDo: 'LinuxDo',
+    usernameLabel: 'Username',
+    levelLabel: 'Trust Level'
 }
 
 export default en

@@ -227,11 +227,11 @@
     </el-dialog>
     <el-dialog class="account-dialog" v-model="detailsShow" :title="t('userDetails')"  >
       <div class="details">
-        <div v-if="userDetails.username"><span class="details-item-title">LinuxDo:</span>
+        <div v-if="userDetails.username"><span class="details-item-title">{{ $t('linuxDo') }}:</span>
           <el-avatar :src="userDetails.avatar" :size="30" class="linuxdo-avatar"  />
-          <span style="margin: 0 10px">用户名：{{userDetails.username}}</span>
+          <span style="margin: 0 10px">{{ $t('usernameLabel') }}：{{userDetails.username}}</span>
           <span>
-                    等级：<el-tag type="success">{{userDetails.trustLevel}}</el-tag>
+                    {{ $t('levelLabel') }}：<el-tag type="success">{{userDetails.trustLevel}}</el-tag>
                   </span>
         </div>
         <div v-if="!sendNumShow"><span
@@ -387,6 +387,8 @@ import {isEmail} from "@/utils/verify-utils.js";
 import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
+
+const EMPTY_SEND_ACTION = { hasPerm: false, sendCount: 0, sendType: 'count' }
 
 defineOptions({
   name: 'user'
@@ -592,7 +594,7 @@ function openAccountList(userId) {
 }
 
 function openDetails(user) {
-  userDetails.value = user;
+  userDetails.value = { sendAction: EMPTY_SEND_ACTION, ...user };
   detailsShow.value = true;
 }
 
@@ -764,22 +766,24 @@ function submit() {
 
 
 function formatSendType(user) {
-  if (user.sendAction.sendType === 'day') return t('daily')
-  if (user.sendAction.sendType === 'count') return t('total')
-  if (user.sendAction.sendType === 'ban') return t('sendBanned')
+  const sendAction = user.sendAction ?? EMPTY_SEND_ACTION
+  if (sendAction.sendType === 'day') return t('daily')
+  if (sendAction.sendType === 'count') return t('total')
+  if (sendAction.sendType === 'ban') return t('sendBanned')
 }
 
 function formatSendCount(user) {
+  const sendAction = user.sendAction ?? EMPTY_SEND_ACTION
 
-  if (!user.sendAction.hasPerm) {
+  if (!sendAction.hasPerm) {
     return t('unauthorized')
   }
 
-  if (!user.sendAction.sendCount) {
+  if (!sendAction.sendCount) {
     return t('unlimited');
   }
 
-  let count = user.sendCount + '/' + user.sendAction.sendCount
+  let count = user.sendCount + '/' + sendAction.sendCount
 
   return count
 }

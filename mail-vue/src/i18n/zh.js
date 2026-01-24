@@ -331,6 +331,9 @@ const zh = {
     searchUser: '搜索用户',
     searchEmail: '搜索邮箱',
     searchSender: '搜索发件人',
-    userEmail: '用户邮箱'
+    userEmail: '用户邮箱',
+    linuxDo: 'LinuxDo',
+    usernameLabel: '用户名',
+    levelLabel: '等级'
 }
 export default zh

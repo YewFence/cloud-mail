@@ -404,7 +404,7 @@ watch(followLoading, (isFollowLoading) => {
     })
   } else {
     const index = expandList.findIndex(item => item.expand === 'loading')
-    expandList.splice(index, 1);
+    if (index > -1) expandList.splice(index, 1);
   }
 });
 
@@ -416,7 +416,7 @@ watch(noLoading, (isNoLoading) => {
     })
   } else {
     const index = expandList.findIndex(item => item.expand === 'noMoreData')
-    expandList.splice(index, 1);
+    if (index > -1) expandList.splice(index, 1);
   }
 })
 
@@ -606,8 +606,12 @@ const handleRead = () => {
 }
 
 function emailRead() {
-  const emailIds = getSelectedMailsIds();
+  const emailIds = [rightClickEmail.value.emailId];
   props.emailRead(emailIds)
+  const index = emailList.findIndex(email => email.emailId === rightClickEmail.value.emailId);
+  if (index > -1) {
+    emailList[index].unread = EmailUnreadEnum.READ;
+  }
 }
 
 function rightDelete(emailId) {
