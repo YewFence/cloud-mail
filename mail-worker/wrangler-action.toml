@@ -40,5 +40,5 @@ linuxdo_client_secret = "${LINUXDO_CLIENT_SECRET}"
 linuxdo_callback_url = "${LINUXDO_CALLBACK_URL}"
 linuxdo_switch = "${LINUXDO_SWITCH}"
 
-[build]
-command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
+
+

@@ -205,11 +205,19 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-          cache-dependency-path: "./mail-worker/pnpm-lock.yaml"
+          cache-dependency-path: "**/pnpm-lock.yaml"
 
-      - name: 📥 Install dependencies
+      - name: 📥 Install dependencies (Worker)
         run: pnpm install --frozen-lockfile
         working-directory: ./mail-worker
+
+      - name: 📥 Install dependencies (Vue)
+        run: pnpm install --frozen-lockfile
+        working-directory: ./mail-vue
+
+      - name: 🏗️ Build Frontend
+        run: pnpm run build
+        working-directory: ./mail-vue
 
       - name : "🔍 Validate Configuration"
         run: |
