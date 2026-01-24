@@ -109,7 +109,12 @@ const accountService = {
 
 		accountId = Number(accountId);
 		size = Number(size);
-		lastSort = Number(lastSort);
+
+		if (lastSort === undefined || lastSort === null || lastSort === '') {
+			lastSort = 9999999999;
+		} else {
+			lastSort = Number(lastSort);
+		}
 
 		if (size > 30) {
 			size = 30;

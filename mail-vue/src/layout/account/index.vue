@@ -330,7 +330,6 @@ function refresh() {
   followLoading.value = false
   noLoading.value = false
   queryParams.accountId = 0
-  queryParams.lastSort = null
   getSkeletonRows();
   scrollbarRef.value.setScrollTop(0)
   accounts.splice(0, accounts.length)
