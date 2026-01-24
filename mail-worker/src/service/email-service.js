@@ -446,30 +446,22 @@ const emailService = {
 			allReceive = accountRow.allReceive;
 		}
 
-		let count = 0
-		let list = []
-
-		while ((count < 6) && list.length === 0) {
-			list = await orm(c).select({...email}).from(email)
-				.leftJoin(
-					account,
-					eq(account.accountId, email.accountId)
-				)
-				.where(
-					and(
-						gt(email.emailId, emailId),
-						eq(email.userId, userId),
-						eq(email.isDel, isDel.NORMAL),
-						eq(account.isDel, isDel.NORMAL),
-						allReceive ? eq(1,1) : eq(email.accountId, accountId),
-						eq(email.type, emailConst.type.RECEIVE)
-					))
-				.orderBy(desc(email.emailId))
-				.limit(20);
-
-			await sleep(5000);
-			count++
-		}
+		const list = await orm(c).select({...email}).from(email)
+			.leftJoin(
+				account,
+				eq(account.accountId, email.accountId)
+			)
+			.where(
+				and(
+					gt(email.emailId, emailId),
+					eq(email.userId, userId),
+					eq(email.isDel, isDel.NORMAL),
+					eq(account.isDel, isDel.NORMAL),
+					allReceive ? eq(1,1) : eq(email.accountId, accountId),
+					eq(email.type, emailConst.type.RECEIVE)
+				))
+			.orderBy(desc(email.emailId))
+			.limit(20);
 
 		await this.emailAddAtt(c, list);
 
@@ -602,9 +594,9 @@ const emailService = {
 			query.orderBy(desc(email.emailId));
 		}
 
-		const listQuery = await query.limit(size).all();
-		const totalQuery = await queryCount.get();
-		const latestEmailQuery = await orm(c).select().from(email)
+		const listQuery = query.limit(size).all();
+		const totalQuery = queryCount.get();
+		const latestEmailQuery = orm(c).select().from(email)
 			.where(and(
 				eq(email.type, emailConst.type.RECEIVE),
 				ne(email.status, emailConst.status.SAVING)
@@ -630,24 +622,16 @@ const emailService = {
 
 		const { emailId } = params;
 
-		let count = 0
-		let list = []
-
-		while ((count < 6) && list.length === 0) {
-			list = await orm(c).select({...email, userEmail: user.email}).from(email)
-				.leftJoin(user, eq(email.userId, user.userId))
-				.where(
-					and(
-						gt(email.emailId, emailId),
-						eq(email.type, emailConst.type.RECEIVE),
-						ne(email.status, emailConst.status.SAVING)
-					))
-				.orderBy(desc(email.emailId))
-				.limit(20);
-
-			await sleep(5000);
-			count++
-		}
+		const list = await orm(c).select({...email, userEmail: user.email}).from(email)
+			.leftJoin(user, eq(email.userId, user.userId))
+			.where(
+				and(
+					gt(email.emailId, emailId),
+					eq(email.type, emailConst.type.RECEIVE),
+					ne(email.status, emailConst.status.SAVING)
+				))
+			.orderBy(desc(email.emailId))
+			.limit(20);
 
 		await this.emailAddAtt(c, list);
 

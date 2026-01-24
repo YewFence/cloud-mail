@@ -106,6 +106,9 @@ const oauthService = {
 	},
 
 	async deleteByUserIds(c, userIds) {
+		if (!userIds || userIds.length === 0) {
+			return;
+		}
 		await orm(c).delete(oauth).where(inArray(oauth.userId, userIds)).run();
 	},
 

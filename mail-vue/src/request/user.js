@@ -19,7 +19,10 @@ export function userSetType(params) {
 
 
 export function userDelete(userIds) {
-    return http.delete('/user/delete', {params:{userIds: userIds + ''}})
+    const normalizedIds = Array.isArray(userIds)
+        ? userIds.filter(Boolean).join(',')
+        : String(userIds ?? '');
+    return http.delete('/user/delete', {params: {userIds: normalizedIds}})
 }
 
 export function userAdd(form) {

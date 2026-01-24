@@ -57,6 +57,13 @@ export function fromNow(date) {
 }
 
 export function updateNow(date) {
+    const d = dayjs.utc(date).tz(timeZone);
+    const now = dayjs();
+    const diffSeconds = now.diff(d, 'second');
+    const diffMinutes = now.diff(d, 'minute');
+    const diffHours = now.diff(d, 'hour');
+    const isToday = now.isSame(d, 'day');
+
     if (isToday) {
         if (diffSeconds < 60) return `Just now`;
         if (diffMinutes < 60) return `${diffMinutes} min ago`;

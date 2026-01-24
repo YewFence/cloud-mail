@@ -101,10 +101,23 @@ const userService = {
 
 	async physicsDelete(c, params) {
 		let { userIds } = params;
-		userIds = userIds.split(',').map(Number);
-		await accountService.physicsDeleteByUserIds(c, userIds);
-		await oauthService.deleteByUserIds(c, userIds);
-		await orm(c).delete(user).where(inArray(user.userId, userIds)).run();
+
+		if (!userIds || typeof userIds !== 'string' || !userIds.trim()) {
+			throw new BizError(t('invalidParams'));
+		}
+		const idList = userIds.split(',').map(Number);
+		if (idList.some(isNaN) || idList.length === 0) {
+			throw new BizError(t('invalidParams'));
+		}
+
+		await accountService.physicsDeleteByUserIds(c, idList);
+		await oauthService.deleteByUserIds(c, idList);
+		await orm(c).delete(user).where(inArray(user.userId, idList)).run();
+
+		// Revoke KV auth tokens
+		for (const uid of idList) {
+			await c.env.kv.delete(kvConst.AUTH_INFO + uid);
+		}
 	},
 
 	async list(c, params) {

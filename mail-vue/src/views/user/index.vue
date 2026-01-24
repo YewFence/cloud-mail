@@ -365,7 +365,7 @@
 </template>
 
 <script setup>
-import {defineOptions, h, reactive, ref, watch} from 'vue'
+import {defineOptions, h, reactive, ref, watch, onUnmounted} from 'vue'
 import {
   userList,
   userDelete,
@@ -514,10 +514,16 @@ const filterItem = reactive({
   receive: ['normal', 'del']
 })
 
-window.addEventListener('wheel', (event) => {
+const handleWheel = () => {
   if (dropdownShow.value) {
     dropdownRef.value.handleClose();
   }
+}
+
+window.addEventListener('wheel', handleWheel)
+
+onUnmounted(() => {
+  window.removeEventListener('wheel', handleWheel)
 })
 
 function visibleChange(e) {

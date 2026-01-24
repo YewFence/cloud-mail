@@ -90,7 +90,7 @@
 <script setup>
 import {starAdd, starCancel} from "@/request/star.js";
 import emailScroll from "@/components/email-scroll/index.vue"
-import {computed, defineOptions, reactive, ref, watch, onMounted} from "vue";
+import {computed, defineOptions, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {
   allEmailList,
@@ -121,6 +121,7 @@ const searchValue = ref('')
 const mySelect = ref()
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+const isMounted = ref(true)
 
 onMounted(() => {
   latest();
@@ -295,9 +296,11 @@ function getEmailList(emailId, size) {
 
 async function latest() {
 
-  while (true) {
+  while (isMounted.value) {
 
     await sleep(1000)
+
+    if (!isMounted.value) break;
 
     const latestId = sysEmailScroll.value.latestEmail?.emailId
 
@@ -352,6 +355,10 @@ async function latest() {
 
   }
 }
+
+onUnmounted(() => {
+  isMounted.value = false
+})
 
 </script>
 <style>

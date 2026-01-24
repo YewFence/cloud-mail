@@ -353,6 +353,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearInterval(timer)
+  window.removeEventListener('wheel', handleWheel)
 })
 
 getEmailList()
@@ -461,11 +462,13 @@ watch(() => emailStore.addStarEmailId, () => {
   })
 })
 
-window.addEventListener('wheel', (event) => {
+const handleWheel = () => {
   if (dropdownShow.value) {
     dropdownRef.value.handleClose();
   }
-})
+}
+
+window.addEventListener('wheel', handleWheel)
 
 function openReply(email) {
   uiStore.writerRef.openReply(email)
@@ -687,7 +690,7 @@ function addItem(email) {
   }
 
   email.formatText = htmlToText(email);
-  email.formatCreateTime = fromNow(email.formatCreateTime);
+  email.formatCreateTime = fromNow(email.createTime);
 
   if (props.timeSort) {
     if (noLoading.value) {

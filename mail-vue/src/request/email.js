@@ -13,7 +13,7 @@ export function emailLatest(emailId, accountId, allReceive) {
 }
 
 export function emailRead(emailIds) {
-    return http.put('/email/read', {emailIds})
+    return http.put('/email/read', {emailIds}, {noMsg: true})
 }
 
 export function emailSend(form,progress) {

@@ -326,7 +326,7 @@ const zh = {
     setRole: '设置权限',
     adminDeleteUser: '删除用户',
     banUser: '封禁用户',
-    enableUser: '启动用户',
+    enableUser: '启用用户',
     restoreUser: '恢复用户',
     searchUser: '搜索用户',
     searchEmail: '搜索邮箱',
