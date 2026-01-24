@@ -14,6 +14,7 @@
                  :item-height="65"
                  @jump="jumpContent"
                  @refresh-before="refreshBefore"
+                 @right-search="rightSearch"
                  :type="'all-email'"
 
     >
@@ -204,7 +205,7 @@ function batchDelete() {
   }
 
   ElMessageBox.confirm(
-      t('delAllEmailConfirm'),
+      t('delAllConfirm'),
       {
         confirmButtonText: t('confirm'),
         cancelButtonText: t('cancel'),
@@ -225,6 +226,12 @@ function batchDelete() {
       clearLoading.value = false
     })
   })
+}
+
+function rightSearch(type, value) {
+  params.searchType = type;
+  searchValue.value = value;
+  search();
 }
 
 function refreshBefore() {
@@ -337,7 +344,7 @@ async function latest() {
       }
 
     } catch (e) {
-      if (e.code === 401) {
+      if (e.code === 401 || e.code === 403) {
         settingStore.settings.autoRefresh = AutoRefreshEnum.DISABLED;
       }
       console.error(e)

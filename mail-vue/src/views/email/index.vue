@@ -110,9 +110,9 @@ async function latest() {
               if (!existIds.has(email.emailId)) {
 
                 existIds.add(email.emailId)
-                scroll.value.addItem(email)
+                const flag = scroll.value.addItem(email)
 
-                if (innerWidth > 1367) {
+                if (innerWidth > 1367 && flag) {
                   ElNotification({
                     type: 'primary',
                     message: `<div style="cursor: pointer;"><div style="overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-weight: bold;font-size: 16px;margin-bottom: 5px;">${email.name}</div><div style="color: teal;">${email.subject}</div></div>`,
@@ -133,7 +133,7 @@ async function latest() {
 
         }
       } catch (e) {
-        if (e.code === 401) {
+        if (e.code === 401 || e.code === 403) {
           settingStore.settings.autoRefresh = AutoRefreshEnum.DISABLED;
         }
         console.error(e)

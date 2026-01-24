@@ -37,12 +37,14 @@
                         v-if="!loading && emailList.length > 0"
                         :key="keyCount"
         >
-          <template #default="{ data: item, index }">
+          <template #default="{ data: item, index }" >
             <div :class="'email-row ' + props.type"
                  :data-checked="item.checked"
                  @click="jumpDetails(item)"
                  v-if="!item.expand"
                  :key="item.emailId"
+                 @contextmenu="handleContextmenu($event, item)"
+                 :style="item.rightChecked ? 'background: #FDF6EC' : ''"
             >
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
                            v-model="item.checked" @click.stop></el-checkbox>
@@ -133,16 +135,89 @@
                        :showUserInfo="showUserInfo"
                        :type="type"/>
       <div class="empty" v-if="noLoading && emailList.length === 0 && !loading">
-        <el-empty :image-size="isMobile ? 120 : 0" :description="$t('noMessagesFound')"/>
+        <el-empty :image-size="isMobile ? 120 : null" :description="$t('noMessagesFound')"/>
       </div>
     </div>
+    <el-dropdown
+        ref="dropdownRef"
+        @visible-change="visibleChange"
+        :virtual-ref="triggerRef"
+        :show-arrow="false"
+        :popper-options="{
+      modifiers: [{ name: 'offset', options: { offset: [0, 0] } }],
+    }"
+        virtual-triggering
+        trigger="contextmenu"
+        placement="bottom-start"
+    >
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item v-if="props.type === 'email'" @click="emailRead()" >
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="fluent:mail-read-20-regular" width="20" height="20" />
+                <span>{{t('markAsRead')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="props.type === 'email'" @click="openReply(rightClickEmail)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="la:reply" width="20" height="20"  />
+                <span>{{t('reply')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="['email','send', 'star'].includes(props.type)" @click="starChange(rightClickEmail)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="solar:star-line-duotone" width="19" height="19"/>
+                <span>{{t('star')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="props.type === 'all-email'" @click="handleSearch('user', rightClickEmail.userEmail)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="iconoir:search" width="20" height="20" />
+                <span>{{t('searchUser')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="props.type === 'all-email' " @click="handleSearch('account', rightClickEmail.toEmail)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="iconoir:search" width="20" height="20" />
+                <span>{{t('searchEmail')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item v-if="props.type === 'all-email' " @click="handleSearch('name', rightClickEmail.name)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="iconoir:search" width="20" height="20" />
+                <span>{{t('searchSender')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+          <el-dropdown-item @click="rightDelete(rightClickEmail.emailId)">
+            <template #default>
+              <div class="right-dropdown-item">
+                <Icon icon="uiw:delete" width="16" height="20" style="margin-left: 1px;margin-right: 3px" />
+                <span>{{t('delete')}}</span>
+              </div>
+            </template>
+          </el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
   </div>
 </template>
 
 <script setup>
 import {Icon} from "@iconify/vue";
 import skeletonBlock from "@/components/email-scroll/skeleton/index.vue"
-import {computed, onActivated, reactive, ref, watch, nextTick} from "vue";
+import {computed, onActivated, reactive, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -191,7 +266,7 @@ const props = defineProps({
   },
   type: {
     type: String,
-    default: ''
+    default: 'email'
   },
   showFirstLoading: {
     type: Boolean,
@@ -203,7 +278,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['jump', 'refresh-before', 'delete-draft'])
+const emit = defineEmits(['jump', 'refresh-before', 'delete-draft', 'right-search'])
 const {t} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
@@ -225,7 +300,26 @@ let reqLock = false
 let isMobile = ref(innerWidth < 1367)
 let skeletonRows = 0
 const timePaddingRight = ref('');
-const keyCount = ref(0)
+const keyCount = ref(0);
+const dropdownRef = ref(null);
+const dropdownCloseLock = ref(false);
+const dropdownShow = ref(false);
+const rightClickEmail = ref({});
+const checkedEmailCount = ref(0);
+let timer = null
+const position = ref(
+    DOMRect.fromRect({
+      x: 0,
+      y: 0,
+    })
+)
+
+const triggerRef = ref({
+  getBoundingClientRect() {
+    return position.value;
+  }
+})
+
 const queryParam = reactive({
   emailId: 0,
   size: 50,
@@ -235,6 +329,7 @@ defineExpose({
   refreshList,
   deleteEmail,
   addItem,
+  handleList,
   emailList,
   firstLoad,
   latestEmail,
@@ -247,6 +342,18 @@ onActivated(() => {
     const index = scrollTop / itemHeight.value
     scrollbarRef.value?.scrollTo(index);
   })
+})
+
+onMounted(() => {
+  timer = setInterval(() => {
+    emailList.forEach(email => {
+      email.formatCreateTime = fromNow(email.createTime);
+    })
+  }, 1000 * 60);
+})
+
+onUnmounted(() => {
+  clearInterval(timer)
 })
 
 getEmailList()
@@ -324,6 +431,7 @@ watch(() => arrivedState.bottom, (isBottom) => {
 watch(
     () => emailList.map(item => item.checked),
     () => {
+      checkedEmailCount.value = emailList.length
       if (emailList.length > 0) {
         updateCheckStatus();
       }
@@ -353,6 +461,50 @@ watch(() => emailStore.addStarEmailId, () => {
     }
   })
 })
+
+window.addEventListener('wheel', (event) => {
+  if (dropdownShow.value) {
+    dropdownRef.value.handleClose();
+  }
+})
+
+function openReply(email) {
+  uiStore.writerRef.openReply(email)
+}
+
+function visibleChange(e) {
+  dropdownShow.value = e;
+  dropdownCloseLock.value = true;
+  setTimeout(() => {
+    dropdownCloseLock.value = false;
+  },1500)
+
+  if (!e && rightClickEmail.value.rightChecked) {
+    rightClickEmail.value.rightChecked = false
+  }
+}
+
+const handleContextmenu = (event, email) => {
+
+  if (props.type === 'draft') {
+    return
+  }
+
+  if (rightClickEmail.value.rightChecked) {
+    rightClickEmail.value.rightChecked = false
+  }
+
+  const { clientX, clientY } = event
+  position.value = DOMRect.fromRect({
+    x: clientX,
+    y: clientY,
+  })
+  event.preventDefault();
+  dropdownRef.value?.handleOpen();
+
+  rightClickEmail.value = email;
+  rightClickEmail.value.rightChecked = true
+}
 
 function updateHasScrollbar() {
   nextTick(() => {
@@ -408,7 +560,6 @@ function cleanSpace(text) {
       .trim();
 }
 
-
 function starChange(email) {
 
   if (!email.isStar) {
@@ -452,7 +603,45 @@ const handleRead = () => {
   })
 }
 
-const handleDelete = () => {
+function emailRead() {
+  const emailIds = getSelectedMailsIds();
+  props.emailRead(emailIds)
+}
+
+function rightDelete(emailId) {
+
+  if (props.type === 'all-email') {
+    ElMessageBox.confirm(t('delOneEmailConfirm'), {
+      confirmButtonText: t('confirm'),
+      cancelButtonText: t('cancel'),
+      type: 'warning'
+    }).then(() => {
+      props.emailDelete([emailId]).then(() => {
+        ElMessage({
+          message: t('delSuccessMsg'),
+          type: 'success',
+          plain: true
+        })
+        emailStore.deleteIds = [emailId];
+      })
+    })
+    return;
+  }
+  props.emailDelete([emailId]).then(() => {
+    ElMessage({
+      message: t('delSuccessMsg'),
+      type: 'success',
+      plain: true
+    })
+    emailStore.deleteIds = [emailId];
+  })
+}
+
+function handleSearch(type, value) {
+  emit('right-search', type, value);
+}
+
+function handleDelete() {
   ElMessageBox.confirm(t('delEmailsConfirm'), {
     confirmButtonText: t('confirm'),
     cancelButtonText: t('cancel'),
@@ -495,7 +684,7 @@ function addItem(email) {
   const existIndex = emailList.findIndex(item => item.emailId === email.emailId)
 
   if (existIndex > -1) {
-    return
+    return false;
   }
 
   email.formatText = htmlToText(email);
@@ -512,7 +701,7 @@ function addItem(email) {
     }
 
     total.value++
-    return;
+    return true;
   }
 
 
@@ -533,6 +722,7 @@ function addItem(email) {
   }
 
   total.value++
+  return true;
 }
 
 function handleCheckAllChange(val) {
@@ -551,13 +741,24 @@ function getSelectedDraftsIds() {
 
 function updateCheckStatus() {
   const checkedCount = emailList.filter(item => item.checked).length;
+  checkedEmailCount.value = checkedCount;
   checkAll.value = checkedCount === emailList.length;
   isIndeterminate.value = checkedCount > 0 && checkedCount < emailList.length;
 }
 
 function jumpDetails(email) {
-  const sel = window.getSelection();
-  if (sel && !sel.isCollapsed) return;
+
+  if (dropdownShow.value) {
+    dropdownRef.value.handleClose();
+    return;
+  }
+
+  if (!dropdownCloseLock.value) {
+    const sel = window.getSelection();
+    if (sel.toString().trim()) {
+      return
+    }
+  }
   emit('jump', email)
 }
 
@@ -637,7 +838,10 @@ function handleList(list) {
       5: { icon: 'bi:send-arrow-up-fill',  color: '#FBBD08', content: t('delayed') },
       7: { icon: 'ic:round-mark-email-read', color: '#FBBD08', content: t('noRecipient') },
     };
-    if (email.isDel) email.isdelContent = t('selectDeleted');
+
+    if (email.isDel) {
+      email.isDelContent = t('selectDeleted');
+    }
     email.statusIcon = statusIconMap[email.status];
   })
 }
@@ -1047,6 +1251,26 @@ function loadData() {
   justify-content: center;
   position: relative;
   bottom: 1px;
+}
+
+
+
+.right-dropdown-item {
+  display: flex;
+  gap: 10px;
+}
+
+:deep(.el-dropdown-menu__item:last-child) {
+  padding-bottom: 10px;
+}
+
+:deep(.el-dropdown-menu__item:first-child) {
+  padding-top: 10px;
+}
+
+:deep(.el-dropdown-menu__item) {
+  padding-right: 14px;
+  padding-left: 14px;
 }
 
 .unread {

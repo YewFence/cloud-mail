@@ -449,7 +449,7 @@ const emailService = {
 		let count = 0
 		let list = []
 
-		while ((count < 10) && list.length === 0) {
+		while ((count < 6) && list.length === 0) {
 			list = await orm(c).select({...email}).from(email)
 				.leftJoin(
 					account,
@@ -467,7 +467,7 @@ const emailService = {
 				.orderBy(desc(email.emailId))
 				.limit(20);
 
-			await sleep(3000);
+			await sleep(5000);
 			count++
 		}
 
@@ -556,24 +556,24 @@ const emailService = {
 		}
 
 		if (userEmail) {
-			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${userEmail + '%'}`);
+			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${'%'+ userEmail + '%'}`);
 		}
 
 		if (accountEmail) {
 			conditions.push(
 				or(
-					sql`${email.toEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
-					sql`${email.sendEmail} COLLATE NOCASE LIKE ${accountEmail + '%'}`,
+					sql`${email.toEmail} COLLATE NOCASE LIKE ${'%'+ accountEmail + '%'}`,
+					sql`${email.sendEmail} COLLATE NOCASE LIKE ${'%'+ accountEmail + '%'}`,
 				)
 			)
 		}
 
 		if (name) {
-			conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${name + '%'}`);
+			conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${'%'+ name + '%'}`);
 		}
 
 		if (subject) {
-			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
+			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${'%'+ subject + '%'}`);
 		}
 
 		conditions.push(ne(email.status, emailConst.status.SAVING));
@@ -633,7 +633,7 @@ const emailService = {
 		let count = 0
 		let list = []
 
-		while ((count < 10) && list.length === 0) {
+		while ((count < 6) && list.length === 0) {
 			list = await orm(c).select({...email, userEmail: user.email}).from(email)
 				.leftJoin(user, eq(email.userId, user.userId))
 				.where(
@@ -645,7 +645,7 @@ const emailService = {
 				.orderBy(desc(email.emailId))
 				.limit(20);
 
-			await sleep(3000);
+			await sleep(5000);
 			count++
 		}
 
