@@ -30,7 +30,7 @@
     <div ref="scroll" class="scroll">
       <el-scrollbar ref="scrollbarRef" style="height: 100%">
         <div class="scroll-box" :infinite-scroll-immediate="false" v-infinite-scroll="loadData"
-             infinite-scroll-distance="600">
+             infinite-scroll-distance="3000">
           <div v-if="(skeleton && !loading)" v-for="item in emailList" :key="item.emailId">
             <div class="email-row"
                  :data-checked="item.checked"
@@ -252,7 +252,7 @@ let isMobile = ref(innerWidth < 1367)
 let skeletonRows = 0
 const queryParam = reactive({
   emailId: 0,
-  size: 30,
+  size: 50,
 });
 
 defineExpose({

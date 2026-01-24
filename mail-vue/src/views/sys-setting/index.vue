@@ -145,11 +145,11 @@
                   <el-select
                       @change="change"
                       :style="`width: ${ locale === 'en' ? 100 : 80 }px;`"
-                      v-model="setting.autoRefreshTime"
+                      v-model="setting.autoRefresh"
                       placeholder="Select"
                   >
                     <el-option
-                        v-for="item in options"
+                        v-for="item in authRefreshOptions"
                         :key="item.value"
                         :label="item.label"
                         :value="item.value"
@@ -840,14 +840,9 @@ const regKeyOptions = computed(() => [
   {label: t('optional'), value: 2},
 ])
 
-const options = computed(() => [
+const authRefreshOptions = computed(() => [
   {label: t('disable'), value: 0},
-  {label: '3s', value: 3},
-  {label: '5s', value: 5},
-  {label: '7s', value: 7},
-  {label: '10s', value: 10},
-  {label: '15s', value: 15},
-  {label: '20s', value: 20}
+  {label: t('enable'), value: 1},
 ])
 
 const tgChatId = ref([])

@@ -17,9 +17,9 @@ import starService from './star-service';
 import dayjs from 'dayjs';
 import kvConst from '../const/kv-const';
 import { t } from '../i18n/i18n'
-import r2Service from './r2-service';
 import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
+import {sleep} from "../utils/time-utils";
 
 const emailService = {
 
@@ -33,8 +33,8 @@ const emailService = {
 		accountId = Number(accountId);
 		allReceive = Number(allReceive);
 
-		if (size > 30) {
-			size = 30;
+		if (size > 50) {
+			size = 50;
 		}
 
 		if (!emailId) {
@@ -109,7 +109,7 @@ const emailService = {
 				eq(email.type, type),
 				eq(email.isDel, isDel.NORMAL)
 			))
-			.orderBy(desc(email.emailId)).limit(size).get();
+			.orderBy(desc(email.emailId)).limit(1).get();
 
 		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
 
@@ -118,14 +118,8 @@ const emailService = {
 			isStar: item.starId != null ? 1 : 0
 		}));
 
-		const emailIds = list.map(item => item.emailId);
 
-		const attsList = await attService.selectByEmailIds(c, emailIds);
-
-		list.forEach(emailRow => {
-			const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
-			emailRow.attList = atts;
-		});
+		await this.emailAddAtt(c, list);
 
 		if (!latestEmail) {
 			latestEmail = {
@@ -452,34 +446,32 @@ const emailService = {
 			allReceive = accountRow.allReceive;
 		}
 
-		const list = await orm(c).select({...email}).from(email)
-			.leftJoin(
-				account,
-				eq(account.accountId, email.accountId)
-			)
-			.where(
-				and(
-					eq(email.userId, userId),
-					eq(email.isDel, isDel.NORMAL),
-					eq(account.isDel, isDel.NORMAL),
-					allReceive ? eq(1,1) : eq(email.accountId, accountId),
-					eq(email.type, emailConst.type.RECEIVE),
-					gt(email.emailId, emailId)
-				))
-			.orderBy(desc(email.emailId))
-			.limit(20);
+		let count = 0
+		let list = []
 
-		const emailIds = list.map(item => item.emailId);
+		while ((count < 10) && list.length === 0) {
+			list = await orm(c).select({...email}).from(email)
+				.leftJoin(
+					account,
+					eq(account.accountId, email.accountId)
+				)
+				.where(
+					and(
+						eq(email.userId, userId),
+						eq(email.isDel, isDel.NORMAL),
+						eq(account.isDel, isDel.NORMAL),
+						allReceive ? eq(1,1) : eq(email.accountId, accountId),
+						eq(email.type, emailConst.type.RECEIVE),
+						gt(email.emailId, emailId)
+					))
+				.orderBy(desc(email.emailId))
+				.limit(20);
 
-		if (emailIds.length > 0) {
-
-			const attsList = await attService.selectByEmailIds(c, emailIds);
-
-			list.forEach(emailRow => {
-				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
-				emailRow.attList = atts;
-			});
+			await sleep(3000);
+			count++
 		}
+
+		await this.emailAddAtt(c, list);
 
 		return list;
 	},
@@ -531,8 +523,8 @@ const emailService = {
 		emailId = Number(emailId);
 		timeSort = Number(timeSort);
 
-		if (size > 30) {
-			size = 30;
+		if (size > 50) {
+			size = 50;
 		}
 
 		if (!emailId) {
@@ -547,6 +539,11 @@ const emailService = {
 
 		const conditions = [];
 
+		if (timeSort) {
+			conditions.push(gt(email.emailId, emailId));
+		} else {
+			conditions.push(lt(email.emailId, emailId));
+		}
 
 		if (type === 'send') {
 			conditions.push(eq(email.type, emailConst.type.SEND));
@@ -589,12 +586,6 @@ const emailService = {
 
 		const countConditions = [...conditions];
 
-		if (timeSort) {
-			conditions.push(gt(email.emailId, emailId));
-		} else {
-			conditions.push(lt(email.emailId, emailId));
-		}
-
 		const query = orm(c).select({ ...email, userEmail: user.email })
 			.from(email)
 			.leftJoin(user, eq(email.userId, user.userId))
@@ -613,18 +604,69 @@ const emailService = {
 
 		const listQuery = await query.limit(size).all();
 		const totalQuery = await queryCount.get();
+		const latestEmailQuery = await orm(c).select().from(email)
+			.where(and(
+				eq(email.type, emailConst.type.RECEIVE),
+				ne(email.status, emailConst.status.SAVING)
+			))
+			.orderBy(desc(email.emailId)).limit(1).get();
 
-		const [list, totalRow] = await Promise.all([listQuery, totalQuery]);
+		let [list, totalRow, latestEmail] = await Promise.all([listQuery, totalQuery, latestEmailQuery]);
+
+		await this.emailAddAtt(c, list);
+
+		if (!latestEmail) {
+			latestEmail = {
+				emailId: 0,
+				accountId: 0,
+				userId: 0,
+			}
+		}
+
+		return { list: list, total: totalRow.total, latestEmail };
+	},
+
+	async allEmailLatest(c, params) {
+
+		const { emailId } = params;
+
+		let count = 0
+		let list = []
+
+		while ((count < 10) && list.length === 0) {
+			list = await orm(c).select({...email, userEmail: user.email}).from(email)
+				.leftJoin(user, eq(email.userId, user.userId))
+				.where(
+					and(
+						gt(email.emailId, emailId),
+						eq(email.type, emailConst.type.RECEIVE),
+						ne(email.status, emailConst.status.SAVING)
+					))
+				.orderBy(desc(email.emailId))
+				.limit(20);
+
+			await sleep(3000);
+			count++
+		}
+
+		await this.emailAddAtt(c, list);
+
+		return list;
+	},
+
+	async emailAddAtt(c, list) {
 
 		const emailIds = list.map(item => item.emailId);
-		const attsList = await attService.selectByEmailIds(c, emailIds);
 
-		list.forEach(emailRow => {
-			const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
-			emailRow.attList = atts;
-		});
+		if (emailIds.length > 0) {
 
-		return { list: list, total: totalRow.total };
+			const attsList = await attService.selectByEmailIds(c, emailIds);
+
+			list.forEach(emailRow => {
+				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
+				emailRow.attList = atts;
+			});
+		}
 	},
 
 	async restoreByUserId(c, userId) {
@@ -639,8 +681,8 @@ const emailService = {
 	},
 
 	async completeReceiveAll(c) {
-			await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.RECEIVE} WHERE status = ${emailConst.status.SAVING} AND EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
-			await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.NOONE} WHERE status = ${emailConst.status.SAVING} AND NOT EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
+		await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.RECEIVE} WHERE status = ${emailConst.status.SAVING} AND EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
+		await c.env.db.prepare(`UPDATE email as e SET status = ${emailConst.status.NOONE} WHERE status = ${emailConst.status.SAVING} AND NOT EXISTS (SELECT 1 FROM account WHERE account_id = e.account_id)`).run();
 	},
 
 	async batchDelete(c, params) {

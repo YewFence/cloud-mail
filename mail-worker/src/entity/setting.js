@@ -5,7 +5,7 @@ export const setting = sqliteTable('setting', {
 	title: text('title').default('').notNull(),
 	manyEmail: integer('many_email').default(0).notNull(),
 	addEmail: integer('add_email').default(0).notNull(),
-	autoRefreshTime: integer('auto_refresh_time').default(0).notNull(),
+	autoRefresh: integer('auto_refresh').default(0).notNull(),
 	addEmailVerify: integer('add_email_verify').default(1).notNull(),
 	registerVerify: integer('register_verify').default(1).notNull(),
 	regVerifyCount: integer('reg_verify_count').default(1).notNull(),
