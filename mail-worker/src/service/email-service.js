@@ -457,12 +457,12 @@ const emailService = {
 				)
 				.where(
 					and(
+						gt(email.emailId, emailId),
 						eq(email.userId, userId),
 						eq(email.isDel, isDel.NORMAL),
 						eq(account.isDel, isDel.NORMAL),
 						allReceive ? eq(1,1) : eq(email.accountId, accountId),
-						eq(email.type, emailConst.type.RECEIVE),
-						gt(email.emailId, emailId)
+						eq(email.type, emailConst.type.RECEIVE)
 					))
 				.orderBy(desc(email.emailId))
 				.limit(20);

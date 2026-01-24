@@ -110,19 +110,7 @@ async function latest() {
               if (!existIds.has(email.emailId)) {
 
                 existIds.add(email.emailId)
-                const flag = scroll.value.addItem(email)
-
-                if (innerWidth > 1367 && flag) {
-                  ElNotification({
-                    type: 'primary',
-                    message: `<div style="cursor: pointer;"><div style="overflow: hidden;white-space: nowrap;text-overflow: ellipsis; font-weight: bold;font-size: 16px;margin-bottom: 5px;">${email.name}</div><div style="color: teal;">${email.subject}</div></div>`,
-                    position: 'bottom-right',
-                    dangerouslyUseHTMLString: true,
-                    onClick: () => {
-                      jumpContent(email);
-                    }
-                  })
-                }
+                scroll.value.addItem(email)
 
                 await sleep(50)
               }

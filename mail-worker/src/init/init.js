@@ -28,8 +28,13 @@ const init = {
 		// await this.v2_6DB(c); // all_receive in 0001
 		// await this.v2_7DB(c); // auto_create in 0002
 		// await this.v2_8DB(c); // auto_refresh rename in 0003
+		// await this.v2_9DB(c); // account sort in 0004
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
+	},
+
+	async v2_9DB(c) {
+		// Moved to 0004_add_account_sort.sql
 	},
 
 	async v2_8DB(c) {
