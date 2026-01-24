@@ -25,38 +25,23 @@ const init = {
 		await this.v2_3DB(c);
 		await this.v2_4DB(c);
 		await this.v2_5DB(c);
-		await this.v2_6DB(c);
-		await this.v2_7DB(c);
-		await this.v2_8DB(c);
+		// await this.v2_6DB(c); // all_receive in 0001
+		// await this.v2_7DB(c); // auto_create in 0002
+		// await this.v2_8DB(c); // auto_refresh rename in 0003
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
 
 	async v2_8DB(c) {
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting RENAME COLUMN auto_refresh_time TO auto_refresh;`),
-				c.env.db.prepare(`UPDATE setting SET auto_refresh = 1 WHERE auto_refresh != 0;`)
-			]);
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		// Moved to 0003_v2_8_0_migration.sql
 	},
 
 	async v2_7DB(c) {
-		try {
-			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1;`).run();
-		} catch (e) {
-			console.error(e)
-		}
+		// Moved to 0002_auto-create-email.sql
 	},
 
 	async v2_6DB(c) {
-		try {
-			await c.env.db.prepare(`ALTER TABLE account ADD COLUMN all_receive INTEGER NOT NULL DEFAULT 0;`).run();
-		} catch (e) {
-			console.warn(`跳过字段：${e.message}`);
-		}
+		// Included in 0001_init.sql
 	},
 
 	async v2_5DB(c) {
