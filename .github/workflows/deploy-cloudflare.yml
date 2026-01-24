@@ -55,6 +55,27 @@ jobs:
         id: render
         working-directory: ./mail-worker
         run: |
+          echo "🔍 Starting configuration check..."
+
+          # 1. Check ADMIN
+          if [ -z "$ADMIN" ]; then
+            echo "❌ ADMIN variable cannot be empty."
+            exit 1
+          fi
+
+          # 2. Check JWT_SECRET
+          if [ -z "$JWT_SECRET" ] || grep -q '[?%#/\\]' <<< "$JWT_SECRET"; then
+            echo "❌ JWT_SECRET variable is empty or contains invalid characters (?, %, #, /, \\)."
+            exit 1
+          fi
+
+          # 3. Check DOMAIN (Must be JSON array)
+          if ! jq -e 'type == "array"' <<< "$DOMAIN" >/dev/null 2>&1; then
+            echo "❌ DOMAIN variable must be a JSON array (e.g., [\"example.com\"])."
+            exit 1
+          fi
+
+          # 4. Check IDs (Skip deployment if missing, don't fail)
           if [ -z "$D1_DATABASE_ID" ] || [ -z "$KV_NAMESPACE_ID" ]; then
             echo "⚠️ Required secrets (D1_DATABASE_ID or KV_NAMESPACE_ID) are not set."
             echo "❌ Skipping deployment."
@@ -81,7 +102,13 @@ jobs:
             yq -i -p=toml -o=toml 'del(.r2_buckets)' "$CONFIG_FILE"
           fi
 
-          # 4. 验证 TOML 语法
+          # 4. 如果没有 LinuxDO 配置，删除相关变量
+          if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
+            echo "ℹ️ LinuxDO configuration not found, removing related variables..."
+            yq -i -p=toml -o=toml 'del(.vars.linuxdo_client_id) | del(.vars.linuxdo_client_secret) | del(.vars.linuxdo_callback_url) | del(.vars.linuxdo_switch)' "$CONFIG_FILE"
+          fi
+
+          # 5. 验证 TOML 语法
           if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
             echo "❌ TOML 语法错误，跳过部署"
             echo "deployment_skipped=true" >> $GITHUB_OUTPUT
