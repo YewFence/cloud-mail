@@ -853,9 +853,6 @@ function handleList(list) {
 
 function refresh() {
   emit('refresh-before')
-  if (props.skeleton) {
-    scrollbarRef.value.setScrollTop(0)
-  }
   refreshList()
 }
 

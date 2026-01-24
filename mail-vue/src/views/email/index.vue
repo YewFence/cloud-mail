@@ -56,6 +56,7 @@ onMounted(() => {
 
 
 watch(() => accountStore.currentAccountId, () => {
+  existIds.clear()
   scroll.value.refreshList();
 })
 
