@@ -53,8 +53,8 @@ jobs:
         env:
           KV_JSON: ${{ steps.list_kv.outputs.command-output }}
         run: |
-          # Try to find ID by name
-          EXISTING_ID=$(echo "$KV_JSON" | jq -r ".[] | select(.title == \"$NAME\") | .id")
+          # Try to find ID by name (using --arg for safe variable passing)
+          EXISTING_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
           
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             echo "✅ Found existing KV: $EXISTING_ID"
@@ -122,7 +122,8 @@ jobs:
         env:
           DB_JSON: ${{ steps.list_d1.outputs.command-output }}
         run: |
-          EXISTING_ID=$(echo "$DB_JSON" | jq -r ".[] | select(.name == \"$NAME\") | .uuid")
+          # Try to find ID by name (using --arg for safe variable passing)
+          EXISTING_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
           
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             echo "✅ Found existing D1: $EXISTING_ID"
@@ -262,13 +263,15 @@ jobs:
           envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
 
           # Optional Features Cleanup (using sed since yq doesn't support TOML output)
+          # NOTE: The sed patterns below depend on the structure of wrangler-action.toml template.
+          #       If the template changes, these patterns may need to be updated accordingly.
           if [ -z "$R2_BUCKET_NAME" ]; then
-            # Remove entire [[r2_buckets]] block
+            # Remove entire [[r2_buckets]] block (assumes block ends with empty line)
             sed -i '/^\[\[r2_buckets\]\]/,/^$/d' "$CONFIG_FILE"
           fi
           
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
-            # Remove linuxdo related vars
+            # Remove linuxdo related vars (line-by-line deletion)
             sed -i '/^linuxdo_client_id/d' "$CONFIG_FILE"
             sed -i '/^linuxdo_client_secret/d' "$CONFIG_FILE"
             sed -i '/^linuxdo_callback_url/d' "$CONFIG_FILE"
