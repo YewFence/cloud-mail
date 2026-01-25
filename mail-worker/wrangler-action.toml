@@ -1,4 +1,4 @@
-name = "cloud-mail"
+name = "${NAME}"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
 
@@ -8,7 +8,7 @@ enabled = true
 
 [[d1_databases]]
 binding = "db"
-database_name = "cloud-mail" # 数据库的名称
+database_name = "${NAME}" # 数据库的名称
 database_id = "${D1_DATABASE_ID}" # 使用占位符引用环境变量
 
 [[kv_namespaces]]

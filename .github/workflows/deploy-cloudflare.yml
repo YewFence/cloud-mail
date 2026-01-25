@@ -91,7 +91,11 @@ jobs:
         env:
           KV_JSON: ${{ steps.list_kv_new.outputs.command-output }}
         run: |
-          NEW_ID=$(echo "$KV_JSON" | jq -r ".[] | select(.title == \"$NAME\") | .id")
+          NEW_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
+          if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
+            echo "❌ Failed to retrieve newly created KV namespace ID"
+            exit 1
+          fi
           echo "✅ Created KV ID: $NEW_ID"
           echo "KV_NAMESPACE_ID=$NEW_ID" >> $GITHUB_ENV
 
@@ -154,7 +158,11 @@ jobs:
         env:
           DB_JSON: ${{ steps.list_d1_new.outputs.command-output }}
         run: |
-          NEW_ID=$(echo "$DB_JSON" | jq -r ".[] | select(.name == \"$NAME\") | .uuid")
+          NEW_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
+          if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
+            echo "❌ Failed to retrieve newly created D1 database ID"
+            exit 1
+          fi
           echo "✅ Created D1 ID: $NEW_ID"
           echo "D1_DATABASE_ID=$NEW_ID" >> $GITHUB_ENV
 
@@ -288,12 +296,12 @@ jobs:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
-          command: d1 migrations apply cloud-mail --remote --config wrangler.generated.toml
+          command: d1 migrations apply ${{ env.NAME }} --remote --config wrangler.generated.toml
 
       - name: 📣 Final Status
         if: always()
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
+          if [ "${{ job.status }}" == "success" ] && [ "${{ steps.render.outputs.deployment_skipped }}" != "true" ]; then
              echo "🎉 Deployment Success!"
           else
              echo "❌ Deployment Failed."
