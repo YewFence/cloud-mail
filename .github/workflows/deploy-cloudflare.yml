@@ -261,11 +261,18 @@ jobs:
           # Envsubst (IDs from provision job are automatically available in env)
           envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
 
-          # Optional Features Cleanup
-          [ -z "$R2_BUCKET_NAME" ] && yq -i -p=toml -o=toml 'del(.r2_buckets)' "$CONFIG_FILE"
+          # Optional Features Cleanup (using sed since yq doesn't support TOML output)
+          if [ -z "$R2_BUCKET_NAME" ]; then
+            # Remove entire [[r2_buckets]] block
+            sed -i '/^\[\[r2_buckets\]\]/,/^$/d' "$CONFIG_FILE"
+          fi
           
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
-            yq -i -p=toml -o=toml 'del(.vars.linuxdo_client_id, .vars.linuxdo_client_secret, .vars.linuxdo_callback_url, .vars.linuxdo_switch)' "$CONFIG_FILE"
+            # Remove linuxdo related vars
+            sed -i '/^linuxdo_client_id/d' "$CONFIG_FILE"
+            sed -i '/^linuxdo_client_secret/d' "$CONFIG_FILE"
+            sed -i '/^linuxdo_callback_url/d' "$CONFIG_FILE"
+            sed -i '/^linuxdo_switch/d' "$CONFIG_FILE"
           fi
 
           # Validation
