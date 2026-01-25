@@ -25,26 +25,28 @@ const init = {
 		await this.v2_3DB(c);
 		await this.v2_4DB(c);
 		await this.v2_5DB(c);
-		await this.v2_6DB(c);
-		await this.v2_7DB(c);
+		// await this.v2_6DB(c); // all_receive in 0001
+		// await this.v2_7DB(c); // auto_create in 0002
+		// await this.v2_8DB(c); // auto_refresh rename in 0003
+		// await this.v2_9DB(c); // account sort in 0004
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
 
+	async v2_9DB(c) {
+		// Moved to 0004_add_account_sort.sql
+	},
+
+	async v2_8DB(c) {
+		// Moved to 0003_v2_8_0_migration.sql
+	},
+
 	async v2_7DB(c) {
-		try {
-			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1;`).run();
-		} catch (e) {
-			console.error(e)
-		}
+		// Moved to 0002_auto-create-email.sql
 	},
 
 	async v2_6DB(c) {
-		try {
-			await c.env.db.prepare(`ALTER TABLE account ADD COLUMN all_receive INTEGER NOT NULL DEFAULT 0;`).run();
-		} catch (e) {
-			console.error(e)
-		}
+		// Included in 0001_init.sql
 	},
 
 	async v2_5DB(c) {
@@ -52,16 +54,16 @@ const init = {
 		try {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN email_prefix_filter text NOT NULL DEFAULT '';`).run();
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 		try {
 			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE email ADD COLUMN unread INTEGER NOT NULL DEFAULT 0;`).run(),
-				c.env.db.prepare(`UPDATE email SET unread = 1;`).run()
+				c.env.db.prepare(`ALTER TABLE email ADD COLUMN unread INTEGER NOT NULL DEFAULT 0;`),
+				c.env.db.prepare(`UPDATE email SET unread = 1;`)
 			]);
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 	},
@@ -84,13 +86,13 @@ const init = {
 				)
 			`).run();
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 		try {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN min_email_prefix INTEGER NOT NULL DEFAULT 1;`).run();
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 	},
@@ -104,13 +106,13 @@ const init = {
 				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN tg_msg_from TEXT NOT NULL DEFAULT 'only-name';`)
 			]);
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 		try {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN tg_msg_text TEXT NOT NULL DEFAULT 'show';`).run();
 		} catch (e) {
-			console.error(e)
+			console.warn(`跳过字段：${e.message}`);
 		}
 
 	},
@@ -126,7 +128,7 @@ const init = {
 				c.env.db.prepare(`DELETE FROM perm WHERE perm_key = 'setting:clean'`)
 			]);
 		} catch (e) {
-			console.error(e.message)
+			console.warn(`跳过字段：${e.message}`);
 		}
 	},
 
@@ -134,7 +136,7 @@ const init = {
 		try {
 			await c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_domain INTEGER NOT NULL DEFAULT 0;`).run();
 		} catch (e) {
-			console.error(e.message)
+			console.warn(`跳过字段：${e.message}`);
 		}
 	},
 
@@ -171,7 +173,7 @@ const init = {
 			try {
 				await c.env.db.prepare(sql).run();
 			} catch (e) {
-				console.warn(`通过字段，原因：${e.message}`);
+				console.warn(`跳过字段：${e.message}`);
 			}
 		});
 
@@ -185,7 +187,7 @@ const init = {
 				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email_nocase ON user (email COLLATE NOCASE)`)
 			]);
 		} catch (e) {
-			console.error(e.message)
+			console.warn(e.message)
 		}
 
 	},
@@ -196,7 +198,7 @@ const init = {
 		try {
 			await c.env.db.prepare(`ALTER TABLE role ADD COLUMN avail_domain TEXT NOT NULL DEFAULT ''`).run();
 		} catch (e) {
-			console.warn(`跳过字段添加，原因：${e.message}`);
+			console.warn(`跳过字段添加：${e.message}`);
 		}
 	},
 
@@ -219,7 +221,7 @@ const init = {
 				CREATE UNIQUE INDEX IF NOT EXISTS idx_setting_code ON reg_key(code COLLATE NOCASE)
 			`).run();
 		} catch (e) {
-			console.warn(`跳过创建索引，原因：${e.message}`);
+			console.warn(`跳过创建索引：${e.message}`);
 		}
 
 
@@ -231,7 +233,7 @@ const init = {
         (35,'密钥添加', 'reg-key:add', 33, 2, 1),
         (36,'密钥删除', 'reg-key:delete', 33, 2, 2)`).run();
 		} catch (e) {
-			console.warn(`跳过数据，原因：${e.message}`);
+			console.warn(`跳过数据：${e.message}`);
 		}
 
 		const ADD_COLUMN_SQL_LIST = [
@@ -245,7 +247,7 @@ const init = {
 			try {
 				await c.env.db.prepare(sql).run();
 			} catch (e) {
-				console.warn(`跳过字段添加，原因：${e.message}`);
+				console.warn(`跳过字段添加：${e.message}`);
 			}
 		});
 
@@ -273,7 +275,7 @@ const init = {
 			try {
 				await c.env.db.prepare(sql).run();
 			} catch (e) {
-				console.warn(`跳过字段添加，原因：${e.message}`);
+				console.warn(`跳过字段添加：${e.message}`);
 			}
 		});
 
@@ -310,7 +312,7 @@ const init = {
 			try {
 				await c.env.db.prepare(sql).run();
 			} catch (e) {
-				console.warn(`跳过字段添加，原因：${e.message}`);
+				console.warn(`跳过字段添加：${e.message}`);
 			}
 		});
 
@@ -325,7 +327,7 @@ const init = {
         (31,'分析页', NULL, 0, 1, 2.1),
         (32,'数据查看', 'analysis:query', 31, 2, 1)`).run();
 		} catch (e) {
-			console.warn(`跳过数据，原因：${e.message}`);
+			console.warn(`跳过数据：${e.message}`);
 		}
 
 	},
@@ -344,7 +346,7 @@ const init = {
 			`ALTER TABLE setting ADD COLUMN site_key TEXT;`,
 			`ALTER TABLE setting ADD COLUMN secret_key TEXT;`,
 			`ALTER TABLE setting ADD COLUMN background TEXT;`,
-			`ALTER TABLE setting ADD COLUMN login_opacity INTEGER NOT NULL DEFAULT 0.88;`,
+			`ALTER TABLE setting ADD COLUMN login_opacity INTEGER NOT NULL DEFAULT 0.90;`,
 
 			`ALTER TABLE user ADD COLUMN create_ip TEXT;`,
 			`ALTER TABLE user ADD COLUMN active_ip TEXT;`,
@@ -362,7 +364,7 @@ const init = {
 			try {
 				await c.env.db.prepare(sql).run();
 			} catch (e) {
-				console.warn(`跳过字段添加，原因：${e.message}`);
+				console.warn(`跳过字段添加：${e.message}`);
 			}
 		});
 
@@ -476,93 +478,98 @@ const init = {
 	async intDB(c) {
 		// 初始化数据库表结构
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS email (
-        email_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        send_email TEXT,
-        name TEXT,
-        account_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        subject TEXT,
-        content TEXT,
-        text TEXT,
-        create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        is_del INTEGER DEFAULT 0 NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS email (
+			email_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+			send_email TEXT,
+			name TEXT,
+			account_id INTEGER NOT NULL,
+			user_id INTEGER NOT NULL,
+			subject TEXT,
+			content TEXT,
+			text TEXT,
+			create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+			is_del INTEGER DEFAULT 0 NOT NULL
+		  )
+		`).run();
 
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS star (
-        star_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        email_id INTEGER NOT NULL,
-        create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS star (
+			star_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			email_id INTEGER NOT NULL,
+			create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+		  )
+		`).run();
 
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS attachments (
-        att_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        email_id INTEGER NOT NULL,
-        account_id INTEGER NOT NULL,
-        key TEXT NOT NULL,
-        filename TEXT,
-        mime_type TEXT,
-        size INTEGER,
-        disposition TEXT,
-        related TEXT,
-        content_id TEXT,
-        encoding TEXT,
-        create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS attachments (
+			att_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			email_id INTEGER NOT NULL,
+			account_id INTEGER NOT NULL,
+			key TEXT NOT NULL,
+			filename TEXT,
+			mime_type TEXT,
+			size INTEGER,
+			disposition TEXT,
+			related TEXT,
+			content_id TEXT,
+			encoding TEXT,
+			create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+		  )
+		`).run();
 
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS user (
-        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
-        type INTEGER DEFAULT 1 NOT NULL,
-        password TEXT NOT NULL,
-        salt TEXT NOT NULL,
-        status INTEGER DEFAULT 0 NOT NULL,
-        create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        active_time DATETIME,
-        is_del INTEGER DEFAULT 0 NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS user (
+			user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email TEXT NOT NULL,
+			type INTEGER DEFAULT 1 NOT NULL,
+			password TEXT NOT NULL,
+			salt TEXT NOT NULL,
+			status INTEGER DEFAULT 0 NOT NULL,
+			create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+			active_time DATETIME,
+			is_del INTEGER DEFAULT 0 NOT NULL
+		  )
+		`).run();
 
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS account (
-        account_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
-        status INTEGER DEFAULT 0 NOT NULL,
-        latest_email_time DATETIME,
-        create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        user_id INTEGER NOT NULL,
-        is_del INTEGER DEFAULT 0 NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS account (
+			account_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			email TEXT NOT NULL,
+			status INTEGER DEFAULT 0 NOT NULL,
+			latest_email_time DATETIME,
+			create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+			user_id INTEGER NOT NULL,
+			is_del INTEGER DEFAULT 0 NOT NULL
+		  )
+		`).run();
 
 		await c.env.db.prepare(`
-      CREATE TABLE IF NOT EXISTS setting (
-        register INTEGER NOT NULL,
-        receive INTEGER NOT NULL,
-        add_email INTEGER NOT NULL,
-        many_email INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        auto_refresh_time INTEGER NOT NULL,
-        register_verify INTEGER NOT NULL,
-        add_email_verify INTEGER NOT NULL
-      )
-    `).run();
+		  CREATE TABLE IF NOT EXISTS setting (
+			register INTEGER NOT NULL,
+			receive INTEGER NOT NULL,
+			add_email INTEGER NOT NULL,
+			many_email INTEGER NOT NULL,
+			title TEXT NOT NULL,
+			auto_refresh INTEGER NOT NULL,
+			register_verify INTEGER NOT NULL,
+			add_email_verify INTEGER NOT NULL
+		  )
+		`).run();
 
-		await c.env.db.prepare(`
-      INSERT INTO setting (
-        register, receive, add_email, many_email, title, auto_refresh_time, register_verify, add_email_verify
-      )
-      SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1
-      WHERE NOT EXISTS (SELECT 1 FROM setting)
-    `).run();
+		try {
+			await c.env.db.prepare(`
+			  INSERT INTO setting (
+				register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify
+			  )
+			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1
+			  WHERE NOT EXISTS (SELECT 1 FROM setting)
+			`).run();
+		} catch (e) {
+			console.warn(e)
+		}
+
 	},
 
 	async receiveEmailToRecipient(c) {

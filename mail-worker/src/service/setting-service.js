@@ -176,7 +176,7 @@ const settingService = {
 			title: settingRow.title,
 			manyEmail: settingRow.manyEmail,
 			addEmail: settingRow.addEmail,
-			autoRefreshTime: settingRow.autoRefreshTime,
+			autoRefresh: settingRow.autoRefresh,
 			addEmailVerify: settingRow.addEmailVerify,
 			registerVerify: settingRow.registerVerify,
 			send: settingRow.send,
