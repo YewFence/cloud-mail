@@ -91,43 +91,20 @@
 步骤如下：
 
 1) 在 GitHub 仓库中打开 Actions（默认是开启的）。
-2) 进入 `Settings -> Secrets and variables -> Actions`，新增以下 Secrets：
-   - 必填：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`
-   - 可选：`R2_BUCKET_NAME`
-   - 业务配置：`DOMAIN`、`ADMIN`、`JWT_SECRET`
+2) 进入 `Settings -> Secrets and variables -> Actions`，新增以下 Secrets/Variables：
+   - 必填：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`DOMAIN`、`ADMIN`、`JWT_SECRET`
+   - 可选（自动创建）：`D1_DATABASE_ID`、`KV_NAMESPACE_ID` - 若未配置，首次部署时会自动创建
+   - 可选（手动创建）：`R2_BUCKET_NAME` - 需在 Cloudflare 控制台手动创建 R2 存储桶
+   - 可选（自定义名称）：`NAME` - Worker/D1/KV 的名称，默认为 `cloud-mail`
    - LinuxDo 登录：`LINUXDO_CLIENT_ID`、`LINUXDO_CLIENT_SECRET`、`LINUXDO_CALLBACK_URL`、`LINUXDO_SWITCH`
 3) 确认 `mail-worker/wrangler-action.toml` 存在（这是模板），Workflow 会用 `envsubst` 渲染成 `wrangler.generated.toml`。
 4) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
 
 关键点：
+- **D1 和 KV 自动创建**：首次部署时，若未配置 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID`，会自动检测并创建对应资源。
+- **R2 需手动创建**：R2 存储桶需要绑定支付方式才能开通，因此不支持自动创建。如不配置 `R2_BUCKET_NAME`，附件将存储在 KV 中（有 25MB 大小限制）。
 - 使用官方 `cloudflare/wrangler-action@v3`，不依赖 `npx wrangler`。
-- 通过 `workingDirectory: ./mail-worker` 指定 Worker 目录。
-- 若 `R2_BUCKET_NAME` 为空，会自动删除 `r2_buckets` 配置。
-- 若 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID` 未配置，会跳过部署。
-- 数据库迁移逻辑已调整为使用 `wrangler-action` 执行 `d1 migrations apply`，跟随部署步骤后运行，且同样受“是否跳过部署”的条件控制。
-
-参考配置（位于 `.github/workflows/deploy-cloudflare.yml`，这里只展示核心片段）：
-
-```yaml
-- name: 🚀 部署 - Deploy
-  id: deploy
-  uses: cloudflare/wrangler-action@v3
-  with:
-    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    workingDirectory: ./mail-worker
-    command: deploy -c wrangler.generated.toml
-
-- name: 🗄️ 数据库迁移 - Apply D1 Migrations
-  uses: cloudflare/wrangler-action@v3
-  with:
-    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    workingDirectory: ./mail-worker
-    command: d1 migrations apply cloud-mail --remote --config wrangler.generated.toml
-```
-
-部署后的 Workers 地址可以从 `deploy` 步骤的 `deployment-url` 输出中获取。
+- 数据库迁移会在部署后自动执行。
 
 ## S3 存储配置须知
 
