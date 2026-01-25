@@ -55,10 +55,11 @@ jobs:
         run: |
           # Try to find ID by name (using --arg for safe variable passing)
           EXISTING_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
-          
+
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             echo "::notice::✅ Found existing KV: $EXISTING_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-            echo "KV_NAMESPACE_ID=$EXISTING_ID" >> $GITHUB_ENV
+            # Use a fresh variable name to avoid GitHub secret masking
+            echo "RESOLVED_KV_ID=$EXISTING_ID" >> $GITHUB_ENV
             echo "need_create=false" >> $GITHUB_OUTPUT
           else
             echo "::warn::⚠️ KV not found. Need creation."
@@ -97,7 +98,8 @@ jobs:
             exit 1
           fi
           echo "::notice::✅ Created KV ID: $NEW_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-          echo "KV_NAMESPACE_ID=$NEW_ID" >> $GITHUB_ENV
+          # Use a fresh variable name to avoid GitHub secret masking
+          echo "RESOLVED_KV_ID=$NEW_ID" >> $GITHUB_ENV
 
       # ------------------------------------------------------------------
       # D1 Provisioning Logic
@@ -124,10 +126,11 @@ jobs:
         run: |
           # Try to find ID by name (using --arg for safe variable passing)
           EXISTING_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
-          
+
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
             echo "::notice::✅ Found existing D1: $EXISTING_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-            echo "D1_DATABASE_ID=$EXISTING_ID" >> $GITHUB_ENV
+            # Use a fresh variable name to avoid GitHub secret masking
+            echo "RESOLVED_D1_ID=$EXISTING_ID" >> $GITHUB_ENV
             echo "need_create=false" >> $GITHUB_OUTPUT
           else
             echo "::warn::⚠️ D1 not found. Need creation."
@@ -165,14 +168,15 @@ jobs:
             exit 1
           fi
           echo "::notice::✅ Created D1 ID: $NEW_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-          echo "D1_DATABASE_ID=$NEW_ID" >> $GITHUB_ENV
+          # Use a fresh variable name to avoid GitHub secret masking
+          echo "RESOLVED_D1_ID=$NEW_ID" >> $GITHUB_ENV
 
-      # Final Output Step
+      # Final Output Step - always output RESOLVED_* IDs (won't be masked since they're fresh variables)
       - name: 📤 Export IDs
         id: set_outputs
         run: |
-          echo "kv_id=$KV_NAMESPACE_ID" >> $GITHUB_OUTPUT
-          echo "d1_id=$D1_DATABASE_ID" >> $GITHUB_OUTPUT
+          echo "kv_id=$RESOLVED_KV_ID" >> $GITHUB_OUTPUT
+          echo "d1_id=$RESOLVED_D1_ID" >> $GITHUB_OUTPUT
 
   # Job 2: Build & Deploy
   deploy:
@@ -325,10 +329,3 @@ jobs:
              echo "::error::❌ Deployment Failed."
              exit 1
           fi
-
-      - name: Delete workflow runs
-        uses: GitRML/delete-workflow-runs@main
-        continue-on-error: true
-        with:
-          retain_days: '3'
-          keep_minimum_runs: '0'
