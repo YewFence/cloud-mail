@@ -42,10 +42,12 @@ const userService = {
 		user.account = account;
 		user.name = account.name;
 		user.permKeys = permKeys;
-		user.role = roleRow
+		user.role = roleRow;
+		user.type = userRow.type;
 
 		if (c.env.admin === userRow.email) {
 			user.role = constant.ADMIN_ROLE
+			user.type = 0;
 		}
 
 		return user;
@@ -98,11 +100,24 @@ const userService = {
 	},
 
 	async physicsDelete(c, params) {
-		const { userId } = params
-		await accountService.physicsDeleteByUserIds(c, [userId])
-		await oauthService.deleteByUserId(c, userId);
-		await orm(c).delete(user).where(eq(user.userId, userId)).run();
-		await c.env.kv.delete(kvConst.AUTH_INFO + userId);
+		let { userIds } = params;
+
+		if (!userIds || typeof userIds !== 'string' || !userIds.trim()) {
+			throw new BizError(t('invalidParams'));
+		}
+		const idList = userIds.split(',').map(Number);
+		if (idList.some(isNaN) || idList.length === 0) {
+			throw new BizError(t('invalidParams'));
+		}
+
+		await accountService.physicsDeleteByUserIds(c, idList);
+		await oauthService.deleteByUserIds(c, idList);
+		await orm(c).delete(user).where(inArray(user.userId, idList)).run();
+
+		// Revoke KV auth tokens
+		for (const uid of idList) {
+			await c.env.kv.delete(kvConst.AUTH_INFO + uid);
+		}
 	},
 
 	async list(c, params) {
@@ -128,7 +143,7 @@ const userService = {
 
 
 		if (email) {
-			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${email + '%'}`);
+			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${'%'+ email + '%'}`);
 		}
 
 
@@ -248,6 +263,7 @@ const userService = {
 
 		const { password, userId } = params;
 		await this.resetPassword(c, { password }, userId);
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	async setStatus(c, params) {

@@ -252,11 +252,11 @@ jobs:
             echo "❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
             exit 1
           fi
+
       - name: 🛠️ Render Config
         id: render
         working-directory: ./mail-worker
         run: |
-
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
           CONFIG_FILE="wrangler.generated.toml"
           
@@ -267,12 +267,12 @@ jobs:
           # Envsubst (IDs from provision job are automatically available in env)
           envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
 
-          # Optional Features Cleanup (using sed since yq doesn't support TOML output)
-          # NOTE: The sed patterns below depend on the structure of wrangler-action.toml template.
+          # Optional Features Cleanup (using sed/awk since yq doesn't support TOML output)
+          # NOTE: The patterns below depend on the structure of wrangler-action.toml template.
           #       If the template changes, these patterns may need to be updated accordingly.
           if [ -z "$R2_BUCKET_NAME" ]; then
-            # Remove entire [[r2_buckets]] block (assumes block ends with empty line)
-            sed -i '/^\[\[r2_buckets\]\]/,/^$/d' "$CONFIG_FILE"
+            # Remove entire [[r2_buckets]] block (handles EOF case with awk)
+            awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
           fi
           
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
