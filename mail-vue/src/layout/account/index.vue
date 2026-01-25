@@ -426,10 +426,25 @@ function getAccountList() {
     loading.value = false
     followLoading.value = false
     first = false
+
+    // 网格模式下检查内容是否足够滚动，不够则继续加载
+    if (uiStore.accountGridMode && !noLoading.value) {
+      nextTick(() => {
+        checkAndLoadMore()
+      })
+    }
   }).catch(() => {
     loading.value = false
     followLoading.value = false
   })
+}
+
+// 检查内容高度是否不足以滚动，如果不足则继续加载
+function checkAndLoadMore() {
+  const scrollContainer = scrollbarRef.value?.wrapRef
+  if (scrollContainer && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
+    getAccountList()
+  }
 }
 
 
