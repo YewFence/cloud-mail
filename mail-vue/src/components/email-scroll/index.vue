@@ -217,7 +217,7 @@
 <script setup>
 import {Icon} from "@iconify/vue";
 import skeletonBlock from "@/components/email-scroll/skeleton/index.vue"
-import {computed, onActivated, reactive, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import {computed, onActivated, onDeactivated, reactive, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
 import {useEmailStore} from "@/store/email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -341,6 +341,11 @@ onActivated(() => {
     const index = scrollTop / itemHeight.value
     scrollbarRef.value?.scrollTo(index);
   })
+  window.addEventListener('wheel', handleWheel)
+})
+
+onDeactivated(() => {
+  window.removeEventListener('wheel', handleWheel)
 })
 
 onMounted(() => {
@@ -353,7 +358,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearInterval(timer)
-  window.removeEventListener('wheel', handleWheel)
 })
 
 getEmailList()
@@ -468,6 +472,7 @@ const handleWheel = () => {
   }
 }
 
+// 初始添加事件监听器（非 keep-alive 场景）
 window.addEventListener('wheel', handleWheel)
 
 function openReply(email) {
