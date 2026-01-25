@@ -707,7 +707,7 @@ function addItem(email) {
       emailList.push(email);
     }
 
-    if (email.emailId > latestEmail.value?.emailId) {
+    if (!latestEmail.value || email.emailId > latestEmail.value.emailId) {
       latestEmail.value = email
     }
 
@@ -728,7 +728,7 @@ function addItem(email) {
     }
   }
 
-  if (email.emailId > latestEmail.value?.emailId) {
+  if (!latestEmail.value || email.emailId > latestEmail.value.emailId) {
     latestEmail.value = email
   }
 

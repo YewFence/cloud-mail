@@ -273,8 +273,12 @@ const accountService = {
 
 		const mainAccountRow = await accountService.selectByEmailIncludeDel(c, userRow.email);
 		let mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
-		await orm(c).update(account).set({ sort: mainSort }).where(eq(account.email, userRow.email )).run();
-		await orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId),eq(account.userId,userId))).run();
+
+		// 使用事务确保两个更新操作的原子性
+		await orm(c).batch([
+			orm(c).update(account).set({ sort: mainSort }).where(eq(account.email, userRow.email)),
+			orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId), eq(account.userId, userId)))
+		]);
 	}
 };
 
