@@ -348,23 +348,26 @@ onDeactivated(() => {
   window.removeEventListener('wheel', handleWheel)
 })
 
+const handleResize = () => {
+  isMobile.value = innerWidth < 1367
+}
+
 onMounted(() => {
   timer = setInterval(() => {
     emailList.forEach(email => {
       email.formatCreateTime = fromNow(email.createTime);
     })
   }, 1000 * 60);
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   clearInterval(timer)
+  window.removeEventListener('wheel', handleWheel)
+  window.removeEventListener('resize', handleResize)
 })
 
 getEmailList()
-
-window.onresize = () => {
-  isMobile.value = innerWidth < 1367
-}
 
 function onScroll(e) {
   scrollTop = e.target.scrollTop;
@@ -825,7 +828,7 @@ function getEmailList(refresh = false) {
 
     handleList(list);
     emailList.push(...list);
-    if (refresh) scrollbarRef.value?.setScrollTop(0);
+    if (refresh) scrollbarRef.value?.scrollTo(0);
 
     noLoading.value = data.list.length < queryParam.size;
     followLoading.value = data.list.length >= queryParam.size;
