@@ -57,11 +57,11 @@ jobs:
           EXISTING_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
           
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
-            echo "✅ Found existing KV: $EXISTING_ID"
+            echo "::notice::✅ Found existing KV: $EXISTING_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
             echo "KV_NAMESPACE_ID=$EXISTING_ID" >> $GITHUB_ENV
             echo "need_create=false" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ KV not found. Need creation."
+            echo "::warn::⚠️ KV not found. Need creation."
             echo "need_create=true" >> $GITHUB_OUTPUT
           fi
 
@@ -93,10 +93,10 @@ jobs:
         run: |
           NEW_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
           if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
-            echo "❌ Failed to retrieve newly created KV namespace ID"
+            echo "::error::❌ Failed to retrieve newly created KV namespace ID"
             exit 1
           fi
-          echo "✅ Created KV ID: $NEW_ID"
+          echo "::notice::✅ Created KV ID: $NEW_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
           echo "KV_NAMESPACE_ID=$NEW_ID" >> $GITHUB_ENV
 
       # ------------------------------------------------------------------
@@ -126,11 +126,11 @@ jobs:
           EXISTING_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
           
           if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
-            echo "✅ Found existing D1: $EXISTING_ID"
+            echo "::notice::✅ Found existing D1: $EXISTING_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
             echo "D1_DATABASE_ID=$EXISTING_ID" >> $GITHUB_ENV
             echo "need_create=false" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ D1 not found. Need creation."
+            echo "::warn::⚠️ D1 not found. Need creation."
             echo "need_create=true" >> $GITHUB_OUTPUT
           fi
 
@@ -161,10 +161,10 @@ jobs:
         run: |
           NEW_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
           if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
-            echo "❌ Failed to retrieve newly created D1 database ID"
+            echo "::error::❌ Failed to retrieve newly created D1 database ID"
             exit 1
           fi
-          echo "✅ Created D1 ID: $NEW_ID"
+          echo "::notice::✅ Created D1 ID: $NEW_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
           echo "D1_DATABASE_ID=$NEW_ID" >> $GITHUB_ENV
 
       # Final Output Step
@@ -235,22 +235,22 @@ jobs:
           
           # Basic Validation
           if [ -z "$ADMIN" ] || [ -z "$JWT_SECRET" ]; then
-            echo "❌ ADMIN and JWT_SECRET are required."
+            echo "::error::❌ ADMIN and JWT_SECRET are required."
             exit 1
           fi
           
           if grep -q '[?%#/\\]' <<< "$JWT_SECRET"; then
-            echo "❌ JWT_SECRET contains invalid characters."
+            echo "::error::❌ JWT_SECRET contains invalid characters."
             exit 1
           fi
 
           if [ -z "$DOMAIN" ]; then
-            echo "❌ DOMAIN is required."
+            echo "::error::❌ DOMAIN is required."
             exit 1
           fi
 
           if ! jq -e 'type == "array"' <<< "$DOMAIN" >/dev/null 2>&1; then
-            echo "❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
+            echo "::error::❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
             exit 1
           fi
 
@@ -272,11 +272,13 @@ jobs:
           # NOTE: The patterns below depend on the structure of wrangler-action.toml template.
           #       If the template changes, these patterns may need to be updated accordingly.
           if [ -z "$R2_BUCKET_NAME" ]; then
+            echo "::notice::ℹ️ R2_BUCKET_NAME not set, disabling R2 integration."
             # Remove entire [[r2_buckets]] block (handles EOF case with awk)
             awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
           fi
           
           if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
+            echo "ℹ️ LinuxDo credentials missing, disabling LinuxDo integration."
             # Remove linuxdo related vars (line-by-line deletion)
             sed -i '/^linuxdo_client_id/d' "$CONFIG_FILE"
             sed -i '/^linuxdo_client_secret/d' "$CONFIG_FILE"
@@ -286,9 +288,9 @@ jobs:
 
           # Validation
           if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
-            echo "❌ Generated TOML is invalid."
+            echo "::error::❌ Generated TOML is invalid. Please check the configuration."
             echo "deployment_skipped=true" >> $GITHUB_OUTPUT
-            exit 0
+            exit 1
           fi
           
           echo "✅ Config generated."
@@ -318,9 +320,9 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ] && [ "${{ steps.render.outputs.deployment_skipped }}" != "true" ]; then
-             echo "🎉 Deployment Success!"
+             echo "::notice::🎉 Deployment Success!"
           else
-             echo "❌ Deployment Failed."
+             echo "::error::❌ Deployment Failed."
              exit 1
           fi
 
