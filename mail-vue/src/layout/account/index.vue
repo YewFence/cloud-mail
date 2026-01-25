@@ -349,6 +349,10 @@ function toggleGridMode() {
 
   if (uiStore.accountGridMode) {
     uiStore.accountShow = true
+    // 切换到网格模式时，检查是否需要加载更多数据
+    nextTick(() => {
+      checkAndLoadMore()
+    })
   }
 }
 
