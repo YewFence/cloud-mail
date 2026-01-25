@@ -175,6 +175,14 @@ jobs:
       - name: 📤 Export IDs
         id: set_outputs
         run: |
+          if [ -z "$RESOLVED_KV_ID" ]; then
+            echo "::notice:: Using KV ID from Github Actions Secrets/Vars, skipping provisioning."
+          fi
+          if [ -z "$RESOLVED_D1_ID" ]; then
+            echo "::notice:: Using D1 ID from Github Actions Secrets/Vars, skipping provisioning."
+          fi
+          # whatever the case, output the resolved IDs. If they were provided, these outputs will be empty
+          # but that's okay since the deploy job uses Secrets/Vars as fallback.
           echo "kv_id=$RESOLVED_KV_ID" >> $GITHUB_OUTPUT
           echo "d1_id=$RESOLVED_D1_ID" >> $GITHUB_OUTPUT
 
@@ -276,7 +284,7 @@ jobs:
           # NOTE: The patterns below depend on the structure of wrangler-action.toml template.
           #       If the template changes, these patterns may need to be updated accordingly.
           if [ -z "$R2_BUCKET_NAME" ]; then
-            echo "::notice::ℹ️ R2_BUCKET_NAME not set, disabling R2 integration."
+            echo "::notice::R2_BUCKET_NAME not set, disabling R2 integration."
             # Remove entire [[r2_buckets]] block (handles EOF case with awk)
             awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
           fi
