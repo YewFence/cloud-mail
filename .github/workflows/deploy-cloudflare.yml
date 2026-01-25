@@ -243,6 +243,11 @@ jobs:
             exit 1
           fi
 
+          if [ -z "$DOMAIN" ]; then
+            echo "❌ DOMAIN is required."
+            exit 1
+          fi
+
           if ! jq -e 'type == "array"' <<< "$DOMAIN" >/dev/null 2>&1; then
             echo "❌ DOMAIN must be a JSON array (e.g. [\"example.com\"])."
             exit 1
