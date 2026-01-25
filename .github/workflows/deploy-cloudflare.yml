@@ -180,9 +180,10 @@ jobs:
     needs: provision
     runs-on: ubuntu-latest
     env:
-      # Use IDs from provision job
-      KV_NAMESPACE_ID: ${{ needs.provision.outputs.kv_id }}
-      D1_DATABASE_ID: ${{ needs.provision.outputs.d1_id }}
+      # Use IDs: prefer provision job outputs, fallback to secrets/vars
+      # Note: GitHub masks outputs that match secrets, so we need fallback
+      KV_NAMESPACE_ID: ${{ needs.provision.outputs.kv_id || secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
+      D1_DATABASE_ID: ${{ needs.provision.outputs.d1_id || secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
       
       # Standard Vars
       NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
