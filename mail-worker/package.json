@@ -2,10 +2,39 @@
 	"name": "mail-worker",
 	"version": "0.0.0",
 	"private": true,
+	"cloudflare": {
+		"bindings": {
+			"vars": {
+				"domain": {
+					"description": "邮件域名，JSON 数组格式，如 [\"example.com\", \"mail.example.org\"]"
+				},
+				"linuxdo_client_id": {
+					"description": "LinuxDo OAuth 客户端 ID（可选）"
+				},
+				"linuxdo_callback_url": {
+					"description": "LinuxDo OAuth 回调地址（可选）"
+				},
+				"linuxdo_switch": {
+					"description": "LinuxDo 登录开关，true/false（可选，默认 false）"
+				}
+			},
+			"secrets": {
+				"admin": {
+					"description": "管理员邮箱地址，如 admin@example.com"
+				},
+				"jwt_secret": {
+					"description": "JWT 密钥，用于签名认证令牌（不要包含 ?%#/\\ 等特殊字符）"
+				},
+				"linuxdo_client_secret": {
+					"description": "LinuxDo OAuth 客户端密钥（可选）"
+				}
+			}
+		}
+	},
 	"scripts": {
 		"dev": "wrangler dev --config wrangler-dev.toml",
 		"test": "wrangler deploy --config wrangler-test.toml",
-		"deploy": "wrangler deploy",
+		"deploy": "wrangler d1 migrations apply cloud-mail --remote && wrangler deploy",
 		"start": "wrangler dev"
 	},
 	"devDependencies": {

@@ -1,8 +1,27 @@
 <p align="center">
     <img src="doc/demo/logo.png" width="80px" />
     <h1 align="center">Cloud Mail</h1>
-    <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p> 
+    <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p>
 </p>
+
+## 快速部署
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YewFence/cloud-mail)
+
+点击上方按钮即可一键部署到 Cloudflare Workers。部署过程会自动：
+- Fork 本仓库到你的 GitHub 账户
+- 创建 D1 数据库、KV 命名空间、R2 存储桶
+- 配置 Workers Builds 实现 CI/CD 自动部署
+
+**部署后配置步骤：**
+1. 在 Cloudflare Dashboard 进入你的 Worker 设置
+2. 配置以下 Secrets（Settings → Variables and Secrets）：
+   - `admin` - 管理员邮箱地址
+   - `jwt_secret` - JWT 密钥（不要包含 `?%#/\` 等特殊字符）
+3. 配置环境变量：
+   - `domain` - 邮件域名，JSON 数组格式，如 `["example.com"
+4. 配置邮件域名的 MX 记录指向 Cloudflare Email Routing
+5. 重新触发一次部署（数据库迁移会自动执行）
 
 
 ## 项目简介
