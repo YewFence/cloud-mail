@@ -35,5 +35,13 @@ crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
 #admin = ""				#管理员的邮箱	示例: admin@example.com
 #jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
 
+# LinuxDo OAuth 配置（可选，默认禁用）
+# 警告：此功能存在已知安全限制，仅在了解风险的情况下启用
+# 详见：https://github.com/YewFence/cloud-mail/blob/main/README.md#github-actions-部署教程wrangler-action
+#linuxdo_client_id = ""			# LinuxDo OAuth Client ID
+#linuxdo_client_secret = ""		# LinuxDo OAuth Client Secret
+#linuxdo_callback_url = ""		# 回调地址，示例: https://yourdomain.com
+#linuxdo_switch = "false"			# 是否启用 LinuxDo 登录按钮（"true" 或 "false"）
+
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
