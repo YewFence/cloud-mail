@@ -32,6 +32,11 @@ const oauthService = {
 
 	async linuxDoLogin(c, params) {
 
+		// 检查LinuxDo OAuth配置是否完整
+		if (!c.env.linuxdo_client_id || !c.env.linuxdo_client_secret || !c.env.linuxdo_callback_url) {
+			throw new BizError('LinuxDo OAuth is not configured');
+		}
+
 		const { code } = params;
 
 		let token = '';
