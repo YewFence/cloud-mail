@@ -96,18 +96,17 @@ jobs:
         working-directory: ./mail-worker
         run: |
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
-          CONFIG_FILE="wrangler.generated.toml"
 
           # Remove wrangler.jsonc to prevent wrangler from picking it up
           # (wrangler.jsonc is for Deploy Button, not GitHub Actions)
           rm -f wrangler.jsonc
 
-          # Copy & Replace
-          cp "wrangler-action.toml" "$CONFIG_FILE"
-          sed -i 's/"\${DOMAIN}"/${DOMAIN}/g' "$CONFIG_FILE"
-          
+          # Generate wrangler.toml from template
+          cp "wrangler-action.toml" "wrangler.toml"
+          sed -i 's/"\${DOMAIN}"/${DOMAIN}/g' "wrangler.toml"
+
           # Envsubst (IDs from provision job are automatically available in env)
-          envsubst < "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
+          envsubst < "wrangler.toml" > temp.toml && mv temp.toml "wrangler.toml"
 
           # Optional Features Cleanup (using sed/awk since yq doesn't support TOML output)
           # NOTE: The patterns below depend on the structure of wrangler-action.toml template.
@@ -115,16 +114,16 @@ jobs:
           if [ -z "$R2_BUCKET_NAME" ]; then
             echo "::notice::R2_BUCKET_NAME not set, disabling R2 integration."
             # Remove entire [[r2_buckets]] block (handles EOF case with awk)
-            awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
+            awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "wrangler.toml" > temp.toml && mv temp.toml "wrangler.toml"
           fi
 
           # Validation
-          if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
+          if ! yq -p=toml '.' "wrangler.toml" > /dev/null 2>&1; then
             echo "::error::❌ Generated TOML is invalid. Please check the configuration."
             echo "deployment_skipped=true" >> $GITHUB_OUTPUT
             exit 1
           fi
-          
+
           echo "✅ Config generated."
           echo "Using KV: $KV_NAMESPACE_ID"
           echo "Using D1: $D1_DATABASE_ID"
@@ -137,7 +136,7 @@ jobs:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
-          command: deploy -c wrangler.generated.toml
+          command: deploy
           secrets: |
             admin
             jwt_secret
@@ -154,7 +153,7 @@ jobs:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
-          command: d1 migrations apply ${{ env.NAME }} --remote --config wrangler.generated.toml
+          command: d1 migrations apply ${{ env.NAME }} --remote
 
       - name: 📣 Final Status
         if: always()
