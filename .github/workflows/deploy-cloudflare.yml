@@ -97,7 +97,11 @@ jobs:
         run: |
           echo "deployment_skipped=false" >> $GITHUB_OUTPUT
           CONFIG_FILE="wrangler.generated.toml"
-          
+
+          # Remove wrangler.jsonc to prevent wrangler from picking it up
+          # (wrangler.jsonc is for Deploy Button, not GitHub Actions)
+          rm -f wrangler.jsonc
+
           # Copy & Replace
           cp "wrangler-action.toml" "$CONFIG_FILE"
           sed -i 's/"\${DOMAIN}"/${DOMAIN}/g' "$CONFIG_FILE"
