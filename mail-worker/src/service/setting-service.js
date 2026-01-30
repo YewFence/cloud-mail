@@ -63,6 +63,10 @@ const settingService = {
 		setting.linuxdoCallbackUrl = null;
 		setting.linuxdoSwitch = false;
 	}
+
+		// 将 emailPrefixFilter 从逗号分隔的字符串转换为数组
+		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
+
 		c.set?.('setting', setting);
 		return setting;
 	},
