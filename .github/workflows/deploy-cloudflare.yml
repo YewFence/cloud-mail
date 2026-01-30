@@ -7,195 +7,15 @@ on:
       - "mail-worker/**"
       - "mail-vue/**"
   workflow_dispatch:
-
 jobs:
-  # Job 1: Resource Provisioning
-  # Checks if resources exist, creates them if missing, and outputs IDs.
-  # Skips execution entirely if IDs are already provided in Secrets/Vars.
-  provision:
-    name: 🛠️ Provision Resources
-    runs-on: ubuntu-latest
-    outputs:
-      kv_id: ${{ steps.set_outputs.outputs.kv_id }}
-      d1_id: ${{ steps.set_outputs.outputs.d1_id }}
-    env:
-      NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
-      # Load potential IDs from configuration
-      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
-      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN}}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-    steps:
-      - name: ➡️ Checkout repository
-        uses: actions/checkout@v4
-
-      # ------------------------------------------------------------------
-      # KV Provisioning Logic
-      # ------------------------------------------------------------------
-      
-      # 1. List KVs (Only if ID is missing)
-      - name: 🔍 Check Existing KV
-        if: env.KV_NAMESPACE_ID == ''
-        id: list_kv
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: kv namespace list
-          quiet: false
-
-      # 2. Parse List & Decide (Only if ID is missing)
-      - name: 🧠 Process KV Check
-        if: env.KV_NAMESPACE_ID == ''
-        id: parse_kv
-        shell: bash
-        env:
-          KV_JSON: ${{ steps.list_kv.outputs.command-output }}
-        run: |
-          # Try to find ID by name (using --arg for safe variable passing)
-          EXISTING_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
-
-          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
-            echo "::notice::✅ Found existing KV: $EXISTING_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-            # Use a fresh variable name to avoid GitHub secret masking
-            echo "RESOLVED_KV_ID=$EXISTING_ID" >> $GITHUB_ENV
-            echo "need_create=false" >> $GITHUB_OUTPUT
-          else
-            echo "::warn::⚠️ KV not found. Need creation."
-            echo "need_create=true" >> $GITHUB_OUTPUT
-          fi
-
-      # 3. Create KV (Only if needed)
-      - name: 🔨 Create KV
-        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: kv namespace create "${{ env.NAME }}"
-
-      # 4. Get New KV ID (Only if created)
-      # Re-listing is safer than parsing creation output which format might change
-      - name: 🔄 Get New KV ID
-        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
-        id: list_kv_new
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: kv namespace list
-
-      - name: 📥 Capture New KV ID
-        if: env.KV_NAMESPACE_ID == '' && steps.parse_kv.outputs.need_create == 'true'
-        shell: bash
-        env:
-          KV_JSON: ${{ steps.list_kv_new.outputs.command-output }}
-        run: |
-          NEW_ID=$(echo "$KV_JSON" | jq -r --arg name "$NAME" '.[] | select(.title == $name) | .id')
-          if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
-            echo "::error::❌ Failed to retrieve newly created KV namespace ID"
-            exit 1
-          fi
-          echo "::notice::✅ Created KV ID: $NEW_ID. ℹ️You can now set KV_NAMESPACE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-          # Use a fresh variable name to avoid GitHub secret masking
-          echo "RESOLVED_KV_ID=$NEW_ID" >> $GITHUB_ENV
-
-      # ------------------------------------------------------------------
-      # D1 Provisioning Logic
-      # ------------------------------------------------------------------
-
-      # 1. List D1s (Only if ID is missing)
-      - name: 🔍 Check Existing D1
-        if: env.D1_DATABASE_ID == ''
-        id: list_d1
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 list --json
-          quiet: false
-
-      # 2. Parse List & Decide (Only if ID is missing)
-      - name: 🧠 Process D1 Check
-        if: env.D1_DATABASE_ID == ''
-        id: parse_d1
-        shell: bash
-        env:
-          DB_JSON: ${{ steps.list_d1.outputs.command-output }}
-        run: |
-          # Try to find ID by name (using --arg for safe variable passing)
-          EXISTING_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
-
-          if [ -n "$EXISTING_ID" ] && [ "$EXISTING_ID" != "null" ]; then
-            echo "::notice::✅ Found existing D1: $EXISTING_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-            # Use a fresh variable name to avoid GitHub secret masking
-            echo "RESOLVED_D1_ID=$EXISTING_ID" >> $GITHUB_ENV
-            echo "need_create=false" >> $GITHUB_OUTPUT
-          else
-            echo "::warn::⚠️ D1 not found. Need creation."
-            echo "need_create=true" >> $GITHUB_OUTPUT
-          fi
-
-      # 3. Create D1 (Only if needed)
-      - name: 🔨 Create D1
-        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 create "${{ env.NAME }}"
-
-      # 4. Get New D1 ID (Only if created)
-      - name: 🔄 Get New D1 ID
-        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
-        id: list_d1_new
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 list --json
-
-      - name: 📥 Capture New D1 ID
-        if: env.D1_DATABASE_ID == '' && steps.parse_d1.outputs.need_create == 'true'
-        shell: bash
-        env:
-          DB_JSON: ${{ steps.list_d1_new.outputs.command-output }}
-        run: |
-          NEW_ID=$(echo "$DB_JSON" | jq -r --arg name "$NAME" '.[] | select(.name == $name) | .uuid')
-          if [ -z "$NEW_ID" ] || [ "$NEW_ID" == "null" ]; then
-            echo "::error::❌ Failed to retrieve newly created D1 database ID"
-            exit 1
-          fi
-          echo "::notice::✅ Created D1 ID: $NEW_ID. ℹ️You can now set D1_DATABASE_ID to this value in Secrets/Vars to skip provisioning in future runs."
-          # Use a fresh variable name to avoid GitHub secret masking
-          echo "RESOLVED_D1_ID=$NEW_ID" >> $GITHUB_ENV
-
-      # Final Output Step - always output RESOLVED_* IDs (won't be masked since they're fresh variables)
-      - name: 📤 Export IDs
-        id: set_outputs
-        run: |
-          if [ -z "$RESOLVED_KV_ID" ]; then
-            echo "::notice:: Using KV ID from Github Actions Secrets/Vars, skipping provisioning."
-          fi
-          if [ -z "$RESOLVED_D1_ID" ]; then
-            echo "::notice:: Using D1 ID from Github Actions Secrets/Vars, skipping provisioning."
-          fi
-          # whatever the case, output the resolved IDs. If they were provided, these outputs will be empty
-          # but that's okay since the deploy job uses Secrets/Vars as fallback.
-          echo "kv_id=$RESOLVED_KV_ID" >> $GITHUB_OUTPUT
-          echo "d1_id=$RESOLVED_D1_ID" >> $GITHUB_OUTPUT
-
-  # Job 2: Build & Deploy
   deploy:
     name: 🏗️ Build & Deploy
-    needs: provision
     runs-on: ubuntu-latest
     env:
       # Use IDs: prefer provision job outputs, fallback to secrets/vars
       # Note: GitHub masks outputs that match secrets, so we need fallback
-      KV_NAMESPACE_ID: ${{ needs.provision.outputs.kv_id || secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
-      D1_DATABASE_ID: ${{ needs.provision.outputs.d1_id || secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
+      KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID || vars.KV_NAMESPACE_ID }}
+      D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || vars.D1_DATABASE_ID }}
       
       # Standard Vars
       NAME: ${{ secrets.NAME || vars.NAME || 'cloud-mail' }}
@@ -258,6 +78,11 @@ jobs:
 
           if [ -z "$DOMAIN" ]; then
             echo "::error::❌ DOMAIN is required."
+            exit 1
+          fi
+
+          if [ -z "${KV_NAMESPACE_ID}" ] || [ -z "${D1_DATABASE_ID}" ]; then
+            echo "::error::❌ KV_NAMESPACE_ID and D1_DATABASE_ID must be set."
             exit 1
           fi
 
