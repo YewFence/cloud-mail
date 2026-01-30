@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cloud-mail",
+  "main": "src/index.js",
+  "compatibility_date": "2025-06-04",
+
+  "observability": {
+    "enabled": true
+  },
+
+  // D1 数据库 - Deploy Button 会自动创建
+  "d1_databases": [
+    {
+      "binding": "db",
+      "database_name": "cloud-mail",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // KV 命名空间 - Deploy Button 会自动创建
+  "kv_namespaces": [
+    {
+      "binding": "kv"
+    }
+  ],
+
+  // R2 存储桶 - 可选，Deploy Button 会自动创建（需账户已绑定支付方式）
+  "r2_buckets": [
+    {
+      "binding": "r2",
+      "bucket_name": "cloud-mail"
+    }
+  ],
+
+  // 静态资源配置
+  "assets": {
+    "binding": "assets",
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+
+  // 定时任务：每天 UTC 16:00 (北京时间 00:00) 执行
+  "triggers": {
+    "crons": ["0 16 * * *"]
+  },
+
+  // 环境变量 - 部署后需在 Dashboard 中配置
+  "vars": {
+    "domain": "[\"example.com\"]"
+  }
+}

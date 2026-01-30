@@ -34,3 +34,5 @@ mail-vue/dist
 !.env.*.example
 
 wrangler.toml
+
+.claude/
