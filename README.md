@@ -19,7 +19,7 @@
    - `admin` - 管理员邮箱地址
    - `jwt_secret` - JWT 密钥（不要包含 `?%#/\` 等特殊字符）
 3. 配置环境变量：
-   - `domain` - 邮件域名，JSON 数组格式，如 `["example.com"
+   - `domain` - 邮件域名，JSON 数组格式，如 `["example.com"]`
 4. 配置邮件域名的 MX 记录指向 Cloudflare Email Routing
 5. 重新触发一次部署（数据库迁移会自动执行）
 
@@ -130,6 +130,7 @@
 | `ADMIN` | ✅ | 管理员账户配置 | `hello@example.com` 你的任意一个域名邮箱 |
 | `JWT_SECRET` | ✅ | JWT 密钥 | 一串随机的复杂的字符串 |
 | `LINUXDO_CLIENT_SECRET` | ❌ | LinuxDo 登录密钥 | - |
+
 **Variables 配置：**
 
 | 名称 | 必填 | 说明 | 示例/备注 |
@@ -157,7 +158,7 @@
 5) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
 
 关键点：
-- **D1 和 KV**：首次部署时，若未配置 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID`，会自动检测并创建对应资源。在之后的更新中也会自动检测是否存在对应资源，避免重复创建。但是建议首次部署后查看 Action 输出配置 ID 并保存到仓库 Variables 中以加快后续部署速度。
+- **D1 和 KV**：`D1_DATABASE_ID` 和 `KV_NAMESPACE_ID` 是必需的配置。您需要先在 Cloudflare Dashboard 中创建 D1 数据库和 KV 命名空间，然后将它们的 ID 配置为仓库的 Variables。
 - **R2 需手动创建**：R2 存储桶需要绑定支付方式才能开通，因此不支持自动创建。如不配置 `R2_BUCKET_NAME`，附件将存储在 KV 中（有 25MB 大小限制）。
 
 > R2 存储桶创建教程请参考官方文档：[R2 官方文档](https://developers.cloudflare.com/r2/)。
