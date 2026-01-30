@@ -43,21 +43,28 @@ const settingService = {
 		domainList = domainList.map(item => '@' + item);
 		setting.domainList = domainList;
 
+	// LinuxDo OAuth 配置
+	// 检查所有必需的环境变量是否为非空字符串
+	const hasLinuxDoConfig = 
+		c.env.linuxdo_client_id && 
+		c.env.linuxdo_client_secret && 
+		c.env.linuxdo_callback_url;
 
-		let linuxdoSwitch = c.env.linuxdo_switch;
+	let linuxdoSwitch = c.env.linuxdo_switch;
 
-		if (typeof linuxdoSwitch === 'string' && linuxdoSwitch === 'true') {
-			linuxdoSwitch = true
-		} else if (linuxdoSwitch === true) {
-			linuxdoSwitch = true
-		} else {
-			linuxdoSwitch = false
-		}
-
+	// 只有配置完整且开关为true时才启用
+	if (hasLinuxDoConfig && (linuxdoSwitch === 'true' || linuxdoSwitch === true)) {
 		setting.linuxdoClientId = c.env.linuxdo_client_id;
 		setting.linuxdoCallbackUrl = c.env.linuxdo_callback_url;
-		setting.linuxdoSwitch = linuxdoSwitch;
+		setting.linuxdoSwitch = true;
+	} else {
+		// 未配置或关闭时，确保前端收到明确的false
+		setting.linuxdoClientId = null;
+		setting.linuxdoCallbackUrl = null;
+		setting.linuxdoSwitch = false;
+	}
 
+		// 将 emailPrefixFilter 从逗号分隔的字符串转换为数组
 		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
 
 		c.set?.('setting', setting);

@@ -14,6 +14,22 @@ const oauthService = {
 
 		const oauthRow = await this.getById(c, oauthUserId);
 
+		// 安全检查：防止使用不存在的 oauthUserId
+		if (!oauthRow) {
+			throw new BizError('OAuth 用户不存在');
+		}
+
+		// 安全检查：防止 OAuth 账号重复绑定
+		if (oauthRow.userId && oauthRow.userId !== 0) {
+			throw new BizError('该 OAuth 账号已绑定邮箱');
+		}
+
+		// 安全检查：防止邮箱被抢注（禁止绑定已存在的邮箱）
+		const existingUser = await userService.selectByEmail(c, email);
+		if (existingUser) {
+			throw new BizError('该邮箱已被注册，请使用其他邮箱');
+		}
+
 		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (userRow) {
@@ -31,6 +47,11 @@ const oauthService = {
 	},
 
 	async linuxDoLogin(c, params) {
+
+		// 检查LinuxDo OAuth配置是否完整
+		if (!c.env.linuxdo_client_id || !c.env.linuxdo_client_secret || !c.env.linuxdo_callback_url) {
+			throw new BizError('LinuxDo OAuth is not configured');
+		}
 
 		const { code } = params;
 

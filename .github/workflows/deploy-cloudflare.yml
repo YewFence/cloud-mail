@@ -288,15 +288,6 @@ jobs:
             # Remove entire [[r2_buckets]] block (handles EOF case with awk)
             awk '/^\[\[r2_buckets\]\]/{skip=1;next} /^\[/{skip=0} !skip' "$CONFIG_FILE" > temp.toml && mv temp.toml "$CONFIG_FILE"
           fi
-          
-          if [ -z "$LINUXDO_CLIENT_ID" ] || [ -z "$LINUXDO_CLIENT_SECRET" ]; then
-            echo "ℹ️ LinuxDo credentials missing, disabling LinuxDo integration."
-            # Remove linuxdo related vars (line-by-line deletion)
-            sed -i '/^linuxdo_client_id/d' "$CONFIG_FILE"
-            sed -i '/^linuxdo_client_secret/d' "$CONFIG_FILE"
-            sed -i '/^linuxdo_callback_url/d' "$CONFIG_FILE"
-            sed -i '/^linuxdo_switch/d' "$CONFIG_FILE"
-          fi
 
           # Validation
           if ! yq -p=toml '.' "$CONFIG_FILE" > /dev/null 2>&1; then
@@ -318,6 +309,14 @@ jobs:
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
           command: deploy -c wrangler.generated.toml
+          secrets: |
+            admin
+            jwt_secret
+            linuxdo_client_secret
+        env:
+          admin: ${{ env.ADMIN }}
+          jwt_secret: ${{ env.JWT_SECRET }}
+          linuxdo_client_secret: ${{ env.LINUXDO_CLIENT_SECRET }}
 
       - name: 🗄️ D1 Migrations
         if: ${{ steps.render.outputs.deployment_skipped == 'false' }}

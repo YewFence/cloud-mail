@@ -96,7 +96,18 @@
    - 可选（自动创建）：`D1_DATABASE_ID`、`KV_NAMESPACE_ID` - 若未配置，首次部署时会自动创建
    - 可选（手动创建）：`R2_BUCKET_NAME` - 需在 Cloudflare 控制台手动创建 R2 存储桶
    - 可选（自定义名称）：`NAME` - Worker/D1/KV 的名称，默认为 `cloud-mail`
-   - LinuxDo 登录：`LINUXDO_CLIENT_ID`、`LINUXDO_CLIENT_SECRET`、`LINUXDO_CALLBACK_URL`、`LINUXDO_SWITCH`
+   - LinuxDo 登录（可选）：`LINUXDO_CLIENT_ID`、`LINUXDO_CLIENT_SECRET`、`LINUXDO_CALLBACK_URL`、`LINUXDO_SWITCH`
+     
+     > **⚠️ LinuxDo OAuth 安全提示**  
+     > LinuxDo OAuth 功能目前存在已知安全限制：
+     > - 用户可以绑定任意未被注册的邮箱地址（已注册的邮箱会被拒绝）
+     > - 可能存在邮箱抢注风险
+     > 
+     > **建议：**
+     > - 如非必要，建议不启用此功能（默认禁用）
+     > - 如需启用，请确保限制可注册的邮箱域名，并定期审查绑定记录
+     > - 我们已添加基本防护（防止绑定已存在邮箱），但仍建议谨慎使用
+
 3) 确认 `mail-worker/wrangler-action.toml` 存在（这是模板），Workflow 会用 `envsubst` 渲染成 `wrangler.generated.toml`。
 4) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
 
