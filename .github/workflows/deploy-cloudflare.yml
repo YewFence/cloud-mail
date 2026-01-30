@@ -318,6 +318,14 @@ jobs:
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ./mail-worker
           command: deploy -c wrangler.generated.toml
+          secrets: |
+            ADMIN
+            JWT_SECRET
+            LINUXDO_CLIENT_SECRET
+        env:
+          ADMIN: ${{ env.ADMIN }}
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+          LINUXDO_CLIENT_SECRET: ${{ env.LINUXDO_CLIENT_SECRET }}
 
       - name: 🗄️ D1 Migrations
         if: ${{ steps.render.outputs.deployment_skipped == 'false' }}
