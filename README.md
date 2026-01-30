@@ -51,7 +51,7 @@
 
 - **🛡️ 管理员功能**：可以对用户，邮件进行管理，RABC权限控制对功能及使用资源限制
 
-- **📦 附件收发**：支持收发附件，使用R2对象存储保存和下载文件
+- **📦 附件收发**：支持收发附件，保存和下载文件
 
 - **🔔 邮件推送**：接收邮件后可以转发到TG机器人或其他服务商邮箱
 
@@ -63,21 +63,29 @@
 
 - **🤖 人机验证**：集成Turnstile人机验证，防止人机批量注册
 
-- **⚡ 自动创建邮箱**：支持收到非存在账户邮件时自动创建邮箱（归属管理员）
-
-- **🗄️ S3存储**：支持配置自定义 S3 兼容存储，不仅仅局限于 R2
-
 - **📢 站点公告**：支持自定义站点公告弹窗，即时通知用户
 
 - **👮 规则限制**：支持配置邮箱前缀长度限制及敏感词过滤
-
-- **💾 EML 导出**：支持将邮件导出为标准 EML 格式，完整保留正文与附件
 
 - **📌 邮箱置顶**：支持将常用邮箱置顶显示，方便快速切换
 
 - **🔄 自动刷新**：邮件列表支持自动刷新，实时获取新邮件
 
 - **🖱️ 右键菜单**：支持右键菜单快捷操作及用户批量删除
+
+## 特色功能
+
+> 以下是按照我自己的需求新增的一些功能
+
+- **💾 EML 导出**：支持将邮件导出为标准 EML 格式，完整保留正文与附件
+  
+- **📅 网格模式**：使用网格模式展示邮箱列表，快速找到对应邮箱
+
+- **⚡ 自动创建邮箱**：支持收到非存在账户邮件时自动创建邮箱，便捷归类邮件（归属管理员）
+
+- **🗄️ S3存储**：支持配置自定义 S3 兼容存储，不仅仅局限于 R2
+
+- **🌥️ 安全部署**：在部署时将 JWT Secret 等敏感信息存入 Cloudflare Workers Secret 加强安全性
 
 - **📜 更多功能**：正在开发中...
 
@@ -110,12 +118,30 @@
 步骤如下：
 
 1) 在 GitHub 仓库中打开 Actions（默认是开启的）。
-2) 进入 `Settings -> Secrets and variables -> Actions`，新增以下 Secrets/Variables：
-   - 必填：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`DOMAIN`、`ADMIN`、`JWT_SECRET`
-   - 可选（自动创建）：`D1_DATABASE_ID`、`KV_NAMESPACE_ID` - 若未配置，首次部署时会自动创建
-   - 可选（手动创建）：`R2_BUCKET_NAME` - 需在 Cloudflare 控制台手动创建 R2 存储桶
-   - 可选（自定义名称）：`NAME` - Worker/D1/KV 的名称，默认为 `cloud-mail`
-   - LinuxDo 登录（可选）：`LINUXDO_CLIENT_ID`、`LINUXDO_CLIENT_SECRET`、`LINUXDO_CALLBACK_URL`、`LINUXDO_SWITCH`
+
+2) 进入 `Settings -> Secrets and variables -> Actions`，配置以下内容：
+
+**Secrets 配置：**
+
+| 名称 | 必填 | 说明 | 示例/备注 |
+|------|----------|------|----------|
+| `CLOUDFLARE_API_TOKEN` | ✅ | Cloudflare API 令牌 | - |
+| `CLOUDFLARE_ACCOUNT_ID` | ✅ | Cloudflare 账户 ID | - |
+| `ADMIN` | ✅ | 管理员账户配置 | `hello@example.com` 你的任意一个域名邮箱 |
+| `JWT_SECRET` | ✅ | JWT 密钥 | 一串随机的复杂的字符串 |
+| `LINUXDO_CLIENT_SECRET` | ❌ | LinuxDo 登录密钥 | - |
+**Variables 配置：**
+
+| 名称 | 必填 | 说明 | 示例/备注 |
+|------|----------|------|----------|
+| `DOMAIN` | ✅ | 邮件域名列表（支持多个） | `["mail.example.com", "mail.example2.com"]` |
+| `D1_DATABASE_ID` | ✅ | D1 数据库 ID | - |
+| `KV_NAMESPACE_ID` | ✅ | KV 命名空间 ID | - |
+| `R2_BUCKET_NAME` | 可选 | R2 存储桶名称 | 需在 Cloudflare 控制台手动创建 |
+| `NAME` | 可选 | Worker/D1/KV 的名称 | 默认为 `cloud-mail` ⚠️ 自定义名称功能未经过测试，建议使用默认值 |
+| `LINUXDO_CLIENT_ID` | 可选 | LinuxDo 客户端 ID | LinuxDo 登录功能相关 |
+| `LINUXDO_CALLBACK_URL` | 可选 | LinuxDo 回调 URL | LinuxDo 登录功能相关 |
+| `LINUXDO_SWITCH` | 可选 | LinuxDo 功能开关 | LinuxDo 登录功能相关 |
      
      > **⚠️ LinuxDo OAuth 安全提示**  
      > LinuxDo OAuth 功能目前存在已知安全限制：
@@ -127,12 +153,17 @@
      > - 如需启用，请确保限制可注册的邮箱域名，并定期审查绑定记录
      > - 我们已添加基本防护（防止绑定已存在邮箱），但仍建议谨慎使用
 
-3) 确认 `mail-worker/wrangler-action.toml` 存在（这是模板），Workflow 会用 `envsubst` 渲染成 `wrangler.generated.toml`。
-4) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
+4) 确认 `mail-worker/wrangler-action.toml` 存在（这是模板），Workflow 会用 `envsubst` 渲染成 `wrangler.generated.toml`。
+5) 推送到 `main` 分支，或在 GitHub Actions 页面手动触发 `Deploy cloud-mail to Cloudflare Workers`。
 
 关键点：
-- **D1 和 KV 自动创建**：首次部署时，若未配置 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID`，会自动检测并创建对应资源。
+- **D1 和 KV**：首次部署时，若未配置 `D1_DATABASE_ID` 或 `KV_NAMESPACE_ID`，会自动检测并创建对应资源。在之后的更新中也会自动检测是否存在对应资源，避免重复创建。但是建议首次部署后查看 Action 输出配置 ID 并保存到仓库 Variables 中以加快后续部署速度。
 - **R2 需手动创建**：R2 存储桶需要绑定支付方式才能开通，因此不支持自动创建。如不配置 `R2_BUCKET_NAME`，附件将存储在 KV 中（有 25MB 大小限制）。
+
+> R2 存储桶创建教程请参考官方文档：[R2 官方文档](https://developers.cloudflare.com/r2/)。
+> > 虽然 R2 需要绑定支付方式而且是即用即付+后付费服务，但是免费额度较高，个人使用一般不会产生费用。
+> 或者你也可以在部署完成后在设置内配置 S3 兼容存储。
+
 - 使用官方 `cloudflare/wrangler-action@v3`，不依赖 `npx wrangler`。
 - 数据库迁移会在部署后自动执行。
 
