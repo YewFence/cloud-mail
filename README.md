@@ -4,6 +4,10 @@
     <p align="center">基于 Cloudflare 的简约响应式邮箱服务，支持邮件发送、附件收发 🎉</p>
 </p>
 
+## 归档说明
+
+已迁移至 https://github.com/dreamhunter2333/cloudflare_temp_email
+
 ## 快速部署
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YewFence/cloud-mail)
